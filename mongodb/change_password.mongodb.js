@@ -1,7 +1,7 @@
-use('fraud');
+use('sample');
 
-db.updateUser("fraud", {
-    pwd: "fraud"
+db.updateUser("sample", {
+    pwd: "sample"
 });
 
 

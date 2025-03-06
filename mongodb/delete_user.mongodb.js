@@ -1,3 +1,3 @@
-use('fraud');
+use('sample');
 
-db.dropUser("fraud");
+db.dropUser("sample");

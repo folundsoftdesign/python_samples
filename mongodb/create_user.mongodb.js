@@ -1,12 +1,12 @@
-use('fraud');
+use('sample');
 
 db.createUser({
-    user: "fraud",
-    pwd: "fraudster",
+    user: "sample",
+    pwd: "samplester",
     roles: [
         {
             role: "dbAdmin",
-            db: "fraud"
+            db: "sample"
         }
     ] 
 });

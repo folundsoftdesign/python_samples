@@ -5,7 +5,7 @@
 ARG PYTHON_VERSION=3.12.9
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS build
-ARG APP="fraud"
+ARG APP="sample"
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
@@ -58,7 +58,7 @@ RUN --mount=type=cache,target=/root/.cache \
 # This is slimmed down and only includes what is essentially required for the app to run in production
 #
 FROM python:${PYTHON_VERSION}-slim-bookworm AS prod
-ARG APP="fraud"
+ARG APP="sample"
 ARG BUILD_DATE
 
 # Install required packages
@@ -95,5 +95,5 @@ RUN chown -R app:app /app/apps/${APP}/data
 USER app:app
 
 EXPOSE 8000
-CMD ["fastapi", "run", "fraud/internal_server.py", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "sample.server:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "info"]
 

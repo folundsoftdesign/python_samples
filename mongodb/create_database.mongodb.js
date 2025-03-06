@@ -1,3 +1,3 @@
-use('fraud');
+use('sample');
 
-db.createCollection('fraud');
+db.createCollection('sample');

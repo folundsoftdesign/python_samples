@@ -31,7 +31,7 @@ pipeline {
             options { timeout(time: 45, unit: 'MINUTES') }
 
             steps {
-                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=fraud jenkins-build"
+                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=sample jenkins-build"
             }
         }
 
@@ -39,7 +39,7 @@ pipeline {
             options { timeout(time: 45, unit: 'MINUTES') }
 
             steps {
-                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=fraud jenkins-test"
+                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=sample jenkins-test"
             }
         }
 
@@ -47,8 +47,8 @@ pipeline {
             options { timeout(time: 45, unit: 'MINUTES') }
 
             steps {
-                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=fraud jenkins-build-prod"
-                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=fraud jenkins-repo-push"
+                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=sample jenkins-build-prod"
+                sh "export IMG_VERSION=${env.BUILD_ID} && make APPLICATION=sample jenkins-repo-push"
             }
         }
 
@@ -58,8 +58,8 @@ pipeline {
 
             steps {
                 echo 'Deploying to development environment'
-                sh "curl --fail -X POST http://porthost:9000/api/webhooks/e77020bc-aee7-483b-bc95-e520129628fc" // fraud external
-                sh "curl --fail -X POST http://porthost:9000/api/webhooks/e255bc01-8911-4131-81ac-c9587822d75d" // fraud internal
+                sh "curl --fail -X POST http://porthost:9000/api/webhooks/e77020bc-aee7-483b-bc95-e520129628fc" // sample external
+                sh "curl --fail -X POST http://porthost:9000/api/webhooks/e255bc01-8911-4131-81ac-c9587822d75d" // sample internal
             }
             
         }
@@ -70,8 +70,8 @@ pipeline {
 
             steps {
                 echo 'Deploying to test environment'
-                sh "curl --fail -X POST http://porthost:9000/api/webhooks/55738fdb-5685-4c64-a0db-4adaeb1a93db" // fraud external
-                sh "curl --fail -X POST http://porthost:9000/api/webhooks/b2423b29-63df-4917-abdc-d0a6e63bfdb4" // fraud internal
+                sh "curl --fail -X POST http://porthost:9000/api/webhooks/55738fdb-5685-4c64-a0db-4adaeb1a93db" // sample external
+                sh "curl --fail -X POST http://porthost:9000/api/webhooks/b2423b29-63df-4917-abdc-d0a6e63bfdb4" // sample internal
             }
         }
 

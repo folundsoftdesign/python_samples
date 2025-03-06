@@ -2,15 +2,15 @@ version: '3.9'
 
 services:
   internal:
-    image: dockerrepo.softdesign.dk:5000/fraud-${BRANCH_NAME}:latest
-    command:  ["uvicorn", "fraud.internal_server:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "error"]
+    image: dockerrepo.softdesign.dk:5000/sample-${BRANCH_NAME}:latest
+    command:  ["uvicorn", "sample.server:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "error"]
 
     networks:
       - synchronicer
       - redis-nw
 
-    volumes:
-      - fraud_data:/app/apps/fraud/data
+    # volumes:
+    #   - sample_data:/app/apps/sample/data
 
     ports:
       - 6231:8000
@@ -22,19 +22,16 @@ services:
       - MONGO_PASS=${MONGO_PASS}
       - LOG_LEVEL=${LOG_LEVEL}
       - LOG_JSON=true
-      - TRAFIKVERKET_API_KEY=${TRAFIKVERKET_API_KEY}
-      - BASE_FEATHER_URL=${BASE_FEATHER_URL:-/app/apps/fraud/data/SOSSV_fraud_csv5_new.parquet}
-      - HMAC_SECRET=${HMAC_SECRET}
 
-    logging:
-      driver: syslog
-      options:
-        syslog-address: 'udp://logstash2:514'
-        syslog-format: 'rfc3164'
-        tag: 'fraud_internal'
+    # logging:
+    #   driver: syslog
+    #   options:
+    #     syslog-address: 'udp://logstash2:514'
+    #     syslog-format: 'rfc3164'
+    #     tag: 'sample_internal'
 
     healthcheck:
-      test: 'curl --fail http://localhost:8000/fraud/health || exit 1'
+      test: 'curl --fail http://localhost:8000/sample/health || exit 1'
       interval: 60s
       retries: 5
       start_period: 5s
@@ -59,15 +56,15 @@ services:
         max_failure_ratio: 0
 
   external:
-    image: dockerrepo.softdesign.dk:5000/fraud-${BRANCH_NAME}:latest
-    command:  ["uvicorn", "fraud.external_server:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "error"]
+    image: dockerrepo.softdesign.dk:5000/sample-${BRANCH_NAME}:latest
+    command:  ["uvicorn", "sample.external_server:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "error"]
 
     networks:
       - synchronicer
       - redis-nw
 
     # volumes:
-    #   - fraud_data:/app/apps/fraud/data
+    #   - sample_data:/app/apps/sample/data
 
     ports:
       - 6232:8000
@@ -79,17 +76,16 @@ services:
       - MONGO_PASS=${MONGO_PASS}
       - LOG_LEVEL=${LOG_LEVEL}
       - LOG_JSON=true
-      - HMAC_SECRET=${HMAC_SECRET}
 
-    logging:
-      driver: syslog
-      options:
-        syslog-address: 'udp://logstash2:514'
-        syslog-format: 'rfc3164'
-        tag: 'fraud_external'
+    # logging:
+    #   driver: syslog
+    #   options:
+    #     syslog-address: 'udp://logstash2:514'
+    #     syslog-format: 'rfc3164'
+    #     tag: 'sample_external'
 
     healthcheck:
-      test: 'curl --fail http://localhost:8000/fraud/health || exit 1'
+      test: 'curl --fail http://localhost:8000/sample/health || exit 1'
       interval: 60s
       retries: 5
       start_period: 5s
@@ -114,12 +110,12 @@ services:
         max_failure_ratio: 0
 
 
-volumes:
-  fraud_data:
-    driver_opts:
-      type: 'nfs'
-      device: ':/volume1/${PYTHON_ENV}/fraud'
-      o: 'addr=192.168.206.249,nfsvers=4'
+# volumes:
+#   sample_data:
+#     driver_opts:
+#       type: 'nfs'
+#       device: ':/volume1/${PYTHON_ENV}/sample'
+#       o: 'addr=192.168.206.249,nfsvers=4'
 
 networks:
   synchronicer:

@@ -5,7 +5,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from ..core import logger, settings
 
 
-async def initialize_database(app: FastAPI, beanie_models: list[type[Document]]) -> None:
+async def initialize_database(
+    app: FastAPI, beanie_models: list[type[Document]]
+) -> None:
     """Initializes the database connection and Beanie models."""
     app.state.client = AsyncIOMotorClient(settings.mongo_dsn)
     db: str = settings.mongo_db

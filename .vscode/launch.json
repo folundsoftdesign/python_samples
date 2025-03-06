@@ -2,25 +2,8 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    // 	cd apps/fraud && uv run fastapi dev fraud/main.py 
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Python Debugger: FastAPI (fraud)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "uvicorn",
-            "cwd": "${workspaceFolder}/apps/fraud",
-            "args": [
-                "fraud.internal_server:app",
-                "--reload"
-            ],
-            "env": {
-                "TRAFIKVERKET_API_KEY": "01d09729869846a1ad51cc2da4ba427b",
-                "BASE_FEATHER_URL": "${workspaceFolder}/apps/fraud/data/SOSSV_fraud_csv5_new.parquet"
-            },
-            "jinja": false
-        },
         {
             "name": "Python Debugger: FastAPI (sample)",
             "type": "debugpy",
