@@ -33,13 +33,8 @@ lint:
 	uv run ruff check
 	uv run mypy .
 
-run-fraud:
-	cd apps/fraud && uv run uvicorn fraud.internal_server:app --log-level debug --reload
-
 run-sample:
 	cd apps/sample && uv run fastapi dev sample/server.py
-run-sample-worker:
-	cd apps/sample && uv run python sample/worker.py
 
 # MONGO
 # Connection string inside dev container: mongodb://root:secret@172.17.0.1:30001/?ssl=false&readPreference=primary

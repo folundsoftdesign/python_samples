@@ -1,4 +1,5 @@
-
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from asgi_correlation_id import CorrelationIdMiddleware
 from beanie import init_beanie
@@ -20,29 +21,28 @@ from sample.features.notes import notes_router
 from sample.features.routers import health_router
 from sample.middlewares.timing_metrics import TimingMetricsMiddleware
 from sample.models import __beanie_models__
+from sample.utilities.database import close_database, initialize_database
 
 
-async def setup_beanie() -> None:
-    logger.debug("Setting up Beanie")
-
-    # Create the Motor client for beanie
-    client: AsyncIOMotorClient = AsyncIOMotorClient(settings.mongo_dsn)
-
-    db: str = settings.mongo_db
-
-    # Initialize beanie adding all the models
-    await init_beanie(client[db], document_models=__beanie_models__)
-
-    logger.debug("Beanie setup completed")
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Manages the application's lifespan, including database connection."""
+    logger.debug("FastAPI app startup - lifespan")
+    await initialize_database(app)
+    try:
+        yield
+    finally:
+        await close_database(app)
 
 
 def app_factory() -> FastAPI:
     logger.info("Creating FastAPI app")
-    app = FastAPI(on_startup=[setup_beanie],
-                  root_path=APP_PREFIX, version=API_VERSION)
+
+    app = FastAPI(lifespan=lifespan, root_path=APP_PREFIX, version=API_VERSION)
 
     fastapi_problem_handler.add_exception_handler(
-        app, logger=logger, documentation_uri_template="https://link-to/my/errors/{type}")
+        app, logger=logger, documentation_uri_template="{type}"
+    )
 
     # Add middleware to include correlation id in logs and responses
     app.add_middleware(

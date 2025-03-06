@@ -7,15 +7,12 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/jungaretti/features/make:1": {},
-    "ghcr.io/devcontainers-contrib/features/mypy:2": {},
-    "ghcr.io/devcontainers-contrib/features/pass-apt-get:1": {},
-    "ghcr.io/devcontainers/features/azure-cli:1": {}
+    "ghcr.io/devcontainers-contrib/features/mypy:2": {}
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "redhat.vscode-yaml",
-        "ms-azuretools.vscode-docker",
         "ms-python.python",
         "ms-python.vscode-pylance",
         "aaron-bond.better-comments",
@@ -23,7 +20,6 @@
         "njpwerner.autodocstring",
         "VisualStudioExptTeam.vscodeintellicode",
         "GitHub.copilot",
-        "ms-toolsai.vscode-jupyter-powertoys",
         "charliermarsh.ruff",
         "eamodio.gitlens",
         "github.vscode-github-actions",
