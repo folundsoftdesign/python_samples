@@ -2,11 +2,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from asgi_correlation_id import CorrelationIdMiddleware
-from beanie import init_beanie
 from fastapi import FastAPI
 from fastapi_pagination import add_pagination
 from fastapi_problem import handler as fastapi_problem_handler
-from motor.motor_asyncio import AsyncIOMotorClient
 
 from sample.constants import (
     API_VERSION,
@@ -16,7 +14,7 @@ from sample.constants import (
     HEADER_NAME_PROCESS_TIME,
     HEADER_REQUEST_ID,
 )
-from sample.core import logger, settings
+from sample.core import logger
 from sample.features.notes import notes_router
 from sample.features.routers import health_router
 from sample.middlewares.timing_metrics import TimingMetricsMiddleware
@@ -28,7 +26,7 @@ from sample.utilities.database import close_database, initialize_database
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manages the application's lifespan, including database connection."""
     logger.debug("FastAPI app startup - lifespan")
-    await initialize_database(app)
+    await initialize_database(app, __beanie_models__)
     try:
         yield
     finally:

@@ -1,16 +1,15 @@
-from beanie import init_beanie
+from beanie import Document, init_beanie
 from fastapi import FastAPI, Request
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from ..core import logger, settings
-from ..models import __beanie_models__
 
 
-async def initialize_database(app: FastAPI) -> None:
+async def initialize_database(app: FastAPI, beanie_models: list[type[Document]]) -> None:
     """Initializes the database connection and Beanie models."""
     app.state.client = AsyncIOMotorClient(settings.mongo_dsn)
     db: str = settings.mongo_db
-    await init_beanie(app.state.client[db], document_models=__beanie_models__)
+    await init_beanie(app.state.client[db], document_models=beanie_models)
     logger.debug("Beanie initialized")
 
 
