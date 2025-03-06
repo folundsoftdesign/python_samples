@@ -1,0 +1,8 @@
+API_VERSION = "1.0.0"
+APP_NAME = "sample"
+APP_PREFIX = "/sample"
+
+HEADER_REQUEST_ID = "X-Request-ID"
+HEADER_NAME_PROCESS_TIME = "X-Process-Time"
+HEADER_NAME_GPU_UTILIZATION = "X-GPU-Utilization"
+HEADER_NAME_CPU_TIME_USED = "X-CPU-Time-Used"

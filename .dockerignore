@@ -1,0 +1,12 @@
+
+**/.devcontainer
+**/.venv
+
+**/Dockerfile*
+**/makefile
+**/notebooks
+**/data
+
+**/dist
+
+**/__pycache__

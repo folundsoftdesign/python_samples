@@ -1,0 +1,37 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.cache": true,
+    "**/.venv": true,
+    "**/__pycache__": true
+  },
+  // Python settings
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "error"
+  },
+  // "python.analysis.extraPaths": [
+  //   "${workspaceFolder}/src"
+  // ],
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.terminal.activateEnvironment": true,
+  // "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  // Test settings
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  // "python.testing.cwd": "${workspaceFolder}/tests",
+  "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
+  "python.testing.autoTestDiscoverOnSaveEnabled": true,
+  // Formatting settings
+  "editor.formatOnSave": true,
+  // Mypy settings
+  "mypy-type-checker.interpreter": [
+    "${workspaceFolder}/.venv/bin/python"
+  ],
+  "makefile.configureOnOpen": false
+}

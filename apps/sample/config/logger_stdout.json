@@ -1,0 +1,57 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "filters": {
+        "correlation_id": {
+            "()": "asgi_correlation_id.CorrelationIdFilter",
+            "uuid_length": 32,
+            "default_value": "-"
+        }
+    },
+    "formatters": {
+        "detailed": {
+            "format": "[%(asctime)s | %(levelname)s | %(name)s | %(correlation_id)s | %(filename)s:%(lineno)d (%(funcName)s)] %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+        }
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "formatter": "detailed",
+            "stream": "ext://sys.stdout",
+            "filters": [
+                "correlation_id"
+            ]
+        }
+    },
+    "loggers": {
+        "pymongo": {
+            "level": "INFO",
+            "handlers": [
+                "stdout"
+            ],
+            "propagate": false
+        },
+        "uvicorn.error": {
+            "level": "INFO",
+            "handlers": [
+                "stdout"
+            ],
+            "propagate": false
+        },
+        "uvicorn.access": {
+            "level": "INFO",
+            "handlers": [
+                "stdout"
+            ],
+            "propagate": false
+        }
+    },
+    "root": {
+        "level": "DEBUG",
+        "handlers": [
+            "stdout"
+        ],
+        "propagate": false
+    }
+}

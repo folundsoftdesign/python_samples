@@ -1,0 +1,35 @@
+[project]
+name = "fraud-detection-monorepo"
+version = "0.1.0"
+description = "Fraud Detection monorepo"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.sources]
+utilities = { workspace = true }
+sample = { workspace = true }
+sample_core = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[tool.uv]
+dev-dependencies = [
+    "pre-commit>=3.8.0",
+    "ipykernel>=6.29.5",
+    "pytest>=8.3.4",
+    "ruff>=0.9.5",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+
+    "mypy>=1.15.0",
+    "mypy-extensions>=1.0.0",
+
+    # These are added as dev dependencies becuase they should be available
+    #  when developing the project.
+    "utilities",
+    "sample",
+    "sample_core",
+]
+package = false
