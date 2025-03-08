@@ -44,9 +44,7 @@ async def get_by_id(id: str) -> SuccessResponse[Note]:
 @notes_router.get("")
 async def route_get_notes(params: Params = Depends()) -> SuccessResponse[Note]:
     paginated_response = await get_notes_paginated(params)
-    return SuccessResponse(
-        data=paginated_response.data, pagination=paginated_response.pagination
-    )
+    return SuccessResponse(data=paginated_response.data, pagination=paginated_response.pagination)
 
 
 @notes_router.put("/{id}", status_code=204)

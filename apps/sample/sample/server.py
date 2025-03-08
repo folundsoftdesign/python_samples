@@ -6,25 +6,26 @@ from fastapi import FastAPI
 from fastapi_pagination import add_pagination
 from fastapi_problem import handler as fastapi_problem_handler
 
-from sample.constants import (
+from sample.core import (
+    close_database,
+    configure_logger,
+    initialize_database,
+    logger,
+    settings,
+)
+from sample.features.background_tasks import background_tasks_router
+from sample.features.health import health_router
+from sample.features.notes import notes_router
+from sample.middlewares.timing_metrics import TimingMetricsMiddleware
+from sample.models import __beanie_models__
+
+from .constants import (
     API_VERSION,
     APP_PREFIX,
     HEADER_NAME_CPU_TIME_USED,
     HEADER_NAME_GPU_UTILIZATION,
     HEADER_NAME_PROCESS_TIME,
     HEADER_REQUEST_ID,
-)
-from sample.features.notes import notes_router
-from sample.features.routers import health_router
-from sample.middlewares.timing_metrics import TimingMetricsMiddleware
-from sample.models import __beanie_models__
-
-from sample.core import (
-    configure_logger,
-    settings,
-    logger,
-    close_database,
-    initialize_database,
 )
 
 configure_logger(settings=settings)
@@ -46,9 +47,7 @@ def app_factory() -> FastAPI:
 
     app = FastAPI(lifespan=lifespan, root_path=APP_PREFIX, version=API_VERSION)
 
-    fastapi_problem_handler.add_exception_handler(
-        app, logger=logger, documentation_uri_template="{type}"
-    )
+    fastapi_problem_handler.add_exception_handler(app, logger=logger, documentation_uri_template="{type}")
 
     # Add middleware to include correlation id in logs and responses
     app.add_middleware(
@@ -67,6 +66,7 @@ def app_factory() -> FastAPI:
     # Add routes
     app.include_router(health_router)
     app.include_router(notes_router)
+    app.include_router(background_tasks_router)
 
     add_pagination(app)
 

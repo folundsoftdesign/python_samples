@@ -29,12 +29,12 @@ exclude = [
     "venv",
 ]
 
-line-length = 88
+line-length = 132
 indent-width = 4
 target-version = "py312"
 
 [lint]
-select = ["E4", "E7", "E9", "F", "F"]
+select = ["E4", "E7", "E9", "F", "I"]
 # select = ["E", "W", "F", "I", "C", "B"]
 ignore = ["E501"]
 fixable = ["ALL"]

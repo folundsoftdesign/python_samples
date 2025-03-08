@@ -8,9 +8,7 @@ class NoteKeys(BaseIdMixin):
 
 class NoteBase(BaseModel):
     title: str = Field(..., description="The title of the note.")
-    description: str | None = Field(
-        None, description="A brief description of the note."
-    )
+    description: str | None = Field(None, description="A brief description of the note.")
 
 
 class NoteCreate(NoteBase):

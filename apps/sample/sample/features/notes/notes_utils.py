@@ -42,9 +42,7 @@ class FormatParam(BaseModel):
     format: FormatEnum = Field(FormatEnum.json, description="Output format")
 
 
-async def generate_response(
-    format: FormatEnum, iterator: AsyncIterator[T]
-) -> tuple[AsyncIterator[str], str]:
+async def generate_response(format: FormatEnum, iterator: AsyncIterator[T]) -> tuple[AsyncIterator[str], str]:
     if format == FormatEnum.json:
 
         async def json_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:

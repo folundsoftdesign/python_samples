@@ -38,9 +38,7 @@ class TimingMetricsMiddleware:
         async def handle_outgoing_request(message: "Message") -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                self._append_metrics(
-                    headers, start_time, start_cpu_time, start_gpu_util
-                )
+                self._append_metrics(headers, start_time, start_cpu_time, start_gpu_util)
             await send(message)
 
         await self.app(scope, receive, handle_outgoing_request)
@@ -56,9 +54,7 @@ class TimingMetricsMiddleware:
 
     def _append_metrics(self, headers, start_time, start_cpu_time, start_gpu_util):
         process_time = time.time() - start_time
-        cpu_time_used = (
-            resource.getrusage(resource.RUSAGE_SELF).ru_utime - start_cpu_time
-        )
+        cpu_time_used = resource.getrusage(resource.RUSAGE_SELF).ru_utime - start_cpu_time
 
         # if gpu_available and start_gpu_util is not None:
         #     handle = pynvml.nvmlDeviceGetHandleByIndex(0)

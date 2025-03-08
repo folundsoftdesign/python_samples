@@ -1,9 +1,11 @@
-from http import HTTPStatus
 import time
+from http import HTTPStatus
 from typing import Dict
 from uuid import UUID
+
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
+from sample.core import logger
 
 
 class Job(BaseModel):
@@ -11,7 +13,7 @@ class Job(BaseModel):
     status: str = "in_progress"
 
 
-background_tasks_router = APIRouter()
+background_tasks_router = APIRouter(prefix="/background_tasks")
 
 jobs: Dict[UUID, Job] = {}
 
@@ -24,6 +26,7 @@ def mock_function(id_job) -> str:
 
 def process_request(job_id):
     response = mock_function(job_id)
+    logger.info(f"Job {job_id} completed and returned {response}")
     jobs[job_id].status = "complete"
 
 

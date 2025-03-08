@@ -91,11 +91,7 @@ class Settings(BaseSettings):
     @property
     def mongo_dsn(self) -> str:
         # Setup authSource - defaults to mongo_db if mongo_auth_db not provided
-        authSource = (
-            f"&authSource={self.mongo_auth_db}"
-            if self.mongo_auth_db
-            else f"&authSource={self.mongo_db}"
-        )
+        authSource = f"&authSource={self.mongo_auth_db}" if self.mongo_auth_db else f"&authSource={self.mongo_db}"
 
         if isinstance(self.mongo_host, list):
             hosts = ",".join(self.mongo_host)
