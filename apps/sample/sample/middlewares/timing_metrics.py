@@ -12,13 +12,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger("timing_metrics")
 
 
-try:
-    import pynvml
+# try:
+#     import pynvml
 
-    pynvml.nvmlInit()
-    gpu_available = True
-except ImportError:
-    gpu_available = False
+#     pynvml.nvmlInit()
+#     gpu_available = True
+# except ImportError:
+#     gpu_available = False
 
 
 @dataclass
@@ -49,9 +49,9 @@ class TimingMetricsMiddleware:
         start_time = time.time()
         start_cpu_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         start_gpu_util = None
-        if gpu_available:
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            start_gpu_util = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
+        # if gpu_available:
+        #     handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        #     start_gpu_util = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
         return start_time, start_cpu_time, start_gpu_util
 
     def _append_metrics(self, headers, start_time, start_cpu_time, start_gpu_util):
@@ -60,11 +60,11 @@ class TimingMetricsMiddleware:
             resource.getrusage(resource.RUSAGE_SELF).ru_utime - start_cpu_time
         )
 
-        if gpu_available and start_gpu_util is not None:
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            end_gpu_util = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
-            gpu_utilization = end_gpu_util - start_gpu_util
-            headers.append(self.header_name_gpu_utilization, str(gpu_utilization))
+        # if gpu_available and start_gpu_util is not None:
+        #     handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        #     end_gpu_util = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
+        #     gpu_utilization = end_gpu_util - start_gpu_util
+        #     headers.append(self.header_name_gpu_utilization, str(gpu_utilization))
 
         headers.append(self.header_name_process_time, str(process_time))
         headers.append(self.header_name_cpu_time_used, str(cpu_time_used))

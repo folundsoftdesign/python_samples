@@ -2,7 +2,8 @@ from beanie import Document, init_beanie
 from fastapi import FastAPI, Request
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from ..core import logger, settings
+from .logger import logger
+from .settings import settings
 
 
 async def initialize_database(

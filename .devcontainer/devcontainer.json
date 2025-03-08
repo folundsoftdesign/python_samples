@@ -25,7 +25,8 @@
         "github.vscode-github-actions",
         "ms-python.mypy-type-checker",
         "mongodb.mongodb-vscode",
-        "zaaack.markdown-editor"
+        "zaaack.markdown-editor",
+        "humao.rest-client"
       ]
     }
   }
