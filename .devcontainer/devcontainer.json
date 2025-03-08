@@ -28,12 +28,12 @@
         "zaaack.markdown-editor"
       ]
     }
-  },
-  "runArgs": [
-    "--gpus",
-    "all",
-    "--cap-add=NET_RAW",
-    "--cap-add=NET_ADMIN",
-    "--dns-search=softdesign.dk"
-  ]
+  }
+  //   "runArgs": [
+  //     "--gpus",
+  //     "all",
+  //     "--cap-add=NET_RAW",
+  //     "--cap-add=NET_ADMIN",
+  //     "--dns-search=softdesign.dk"
+  //   ]
 }
