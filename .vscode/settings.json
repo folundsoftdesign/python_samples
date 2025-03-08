@@ -11,6 +11,10 @@
     "**/__pycache__": true
   },
   // Python settings
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  },
   "python.analysis.autoSearchPaths": true,
   "python.analysis.diagnosticSeverityOverrides": {
     "reportMissingImports": "error"
