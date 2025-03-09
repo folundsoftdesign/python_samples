@@ -15,6 +15,7 @@ dependencies = [
     "python-json-logger>=3.2.1",
     "utilities",
     "fastapi-problem>=0.10.6",
+    "sqlmodel>=0.0.24",
 ]
 
 [build-system]
