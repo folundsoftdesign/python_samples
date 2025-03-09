@@ -1,6 +1,6 @@
 from sample.core import settings
 
-from .health_type import Health
+from .types import Health
 
 
 def health_service() -> Health:

@@ -6,3 +6,8 @@ Content-Type: application/json
 
 
 GET http://localhost:8000/sample/background_tasks/status HTTP/1.1
+
+
+###
+
+POST http://localhost:8000/gpu_task/{{$guid}} HTTP/1.1

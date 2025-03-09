@@ -1,5 +1,8 @@
-from .background_tasks import background_tasks_router
-from .health.health_router import health_router
-from .notes.notes_router import notes_router
+from fastapi import APIRouter
 
-__all__ = ["health_router", "notes_router", "background_tasks_router"]
+from sample.features import background_tasks, health, notes
+
+api_router = APIRouter()
+api_router.include_router(health.router)
+api_router.include_router(notes.router)
+api_router.include_router(background_tasks.router)

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+
 from sample.mixins import BaseIdMixin, OptionalMixin
 
 

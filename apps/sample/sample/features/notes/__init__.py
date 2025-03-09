@@ -1,3 +1,3 @@
-from .notes_router import notes_router
+from .router import router
 
-__all__ = ["notes_router"]
+__all__ = ["router"]

@@ -3,8 +3,10 @@ from http import HTTPStatus
 from typing import Dict
 from uuid import UUID
 
+import anyio
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
+
 from sample.core import logger
 
 
@@ -13,9 +15,22 @@ class Job(BaseModel):
     status: str = "in_progress"
 
 
-background_tasks_router = APIRouter(prefix="/background_tasks")
+router = APIRouter(prefix="/background_tasks")
 
 jobs: Dict[UUID, Job] = {}
+
+
+async def process_gpu_task(task_id: int):
+    try:
+        print(f"GPU task {task_id} started")
+        await anyio.sleep(5)  # Simulate GPU processing
+        print(f"GPU task {task_id} completed")
+    except Exception as e:
+        print(f"Error processing GPU task {task_id}: {e}")
+        # Add any exception handling logic here (e.g., logging)
+    finally:
+        # The lock is released when the 'async with' block exits, not explicitly in the finally block.
+        pass  # this finally is now redundant, but kept for clarity.
 
 
 def mock_function(id_job) -> str:
@@ -30,12 +45,12 @@ def process_request(job_id):
     jobs[job_id].status = "complete"
 
 
-@background_tasks_router.get("/status")
+@router.get("/status")
 async def status_handler():
     return jobs
 
 
-@background_tasks_router.post("/request/{uid}", status_code=HTTPStatus.ACCEPTED)
+@router.post("/request/{uid}", status_code=HTTPStatus.ACCEPTED)
 async def request_API(uid: UUID, background_tasks: BackgroundTasks):
     new_task = Job(uid=uid)
     new_task.status = "in_queue"
