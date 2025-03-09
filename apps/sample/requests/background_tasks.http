@@ -10,10 +10,18 @@ GET http://localhost:8000/sample/background_tasks/status HTTP/1.1
 
 ###
 
-POST http://localhost:8000/gpu_task HTTP/1.1
+POST http://localhost:8000/worker HTTP/1.1
 Content-Type: application/json
 
 {
-  "id": "{{$guid}}",
   "data": "Hello World!"
 }
+
+###
+
+GET http://localhost:8000/worker HTTP/1.1
+
+
+###
+
+GET http://localhost:8000/worker/5d454ef1-8716-4c52-9804-dc1656cd0f49 HTTP/1.1
