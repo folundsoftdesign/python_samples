@@ -5,7 +5,7 @@ from typing import Tuple
 
 import anyio
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 router = APIRouter(prefix="/worker")
@@ -17,6 +17,7 @@ send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectRecei
 send_stream, receive_stream = send_receive_streams
 task_lock = anyio.Lock()
 task_semaphore = anyio.Semaphore(1)  # create the semaphore
+
 
 sqlite_file = Path(__file__).parent / "../data" / "playground.db"
 sqlite_url = f"sqlite:///{sqlite_file}"
@@ -59,8 +60,9 @@ async def process_gpu_task(task_id: uuid.UUID):
 
 
 async def worker():
-    async for task_id in receive_stream:
-        await process_gpu_task(task_id)  # Remove task group, because we want serial processing.
+    async with anyio.create_task_group() as task_group:  # create a task group
+        async for task_id in receive_stream:
+            task_group.start_soon(process_gpu_task, task_id)  # start the task in the task group.
 
 
 @router.post("")
@@ -74,21 +76,17 @@ async def enqueue_gpu_task(task: TaskPayload):
 
 
 @router.get("")
-async def get_status():
+async def get_tasks():
     with Session(engine) as session:
         tasks = session.query(TaskPayload).all()
-        return {"tasks": tasks}
+    return tasks
 
 
 @router.get("/{task_id}")
 async def get_task(task_id: uuid.UUID):
     with Session(engine) as session:
         task = session.get(TaskPayload, task_id)
-
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-
-        return task.model_dump()
+    return task
 
 
 @asynccontextmanager
