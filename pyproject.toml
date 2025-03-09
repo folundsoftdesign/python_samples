@@ -10,6 +10,8 @@ dependencies = []
 utilities = { workspace = true }
 sample = { workspace = true }
 sample_core = { workspace = true }
+playground = { workspace = true }
+
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
@@ -31,5 +33,6 @@ dev-dependencies = [
     "utilities",
     "sample",
     "sample_core",
+    "playground",
 ]
 package = false
