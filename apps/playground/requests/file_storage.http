@@ -1,11 +1,20 @@
 GET http://localhost:8000/list HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
 
 
 ###
 
 GET http://localhost:8000/images/test2.jpg HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
 
 
 ### 
 
 DELETE http://localhost:8000/images/test2.jpg HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
+
+
+###
+
+GET http://localhost:8000/generate_token?tenant_id=playground HTTP/1.1
+admin-key: admin_secret_key

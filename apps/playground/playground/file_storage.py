@@ -4,17 +4,21 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
+import jwt
 from beanie import Document, PydanticObjectId, init_beanie
-from fastapi import FastAPI, File, Header, HTTPException, Path, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorGridFSBucket
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from starlette import status
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://root:secret@172.17.0.1:30001")
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 1024 * 1024 * 1024))  # default 1GB
+JWT_SECRET = os.getenv("JWT_SECRET", "very_secret_key")
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin_secret_key")
+
 DATABASE_NAME = "sample"
 
 
@@ -41,11 +45,12 @@ class FileMetadata(Document):
     file_hash: Optional[str] = None
     content_type: str
     file_size: Optional[int] = None
+    tenant_id: str
 
     class Config:
         collection = "file_metadata"
         arbitrary_types_allowed = True
-        indexes = [[("bucket_name", 1), ("filename", 1)]]
+        indexes = [[("tenant_id", 1), ("bucket_name", 1), ("filename", 1)]]
 
 
 def calculate_hash(data: bytes) -> str:
@@ -69,18 +74,54 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+def get_tenant_id(authorization: str = Header(...)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    token = authorization.split("Bearer ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return payload["tenant_id"]
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except KeyError:
+        raise HTTPException(status_code=400, detail="tenant_id missing from token")
+
+
+class TokenRequest(BaseModel):
+    tenant_id: Annotated[str, StringConstraints(min_length=1, max_length=255, pattern="^[a-zA-Z0-9_-]+$")]
+
+
+def verify_admin_key(admin_key: str = Header(...)):
+    if admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid admin API key")
+
+
+@app.get("/generate_token")
+async def generate_token(request: TokenRequest = Depends(), admin_key: str = Depends(verify_admin_key)) -> str:
+    tenant_id = request.tenant_id
+    now = current_utc_timestamp().timestamp()
+
+    logger.info("Generating token")
+
+    payload = {"tenant_id": tenant_id, "exp": now + 3600, "iat": now}
+
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+
 @app.get("/list")
-async def list_objects() -> List[FileMetadata]:
+async def list_objects(tenant_id: str = Depends(get_tenant_id)) -> List[FileMetadata]:
     logger.info("Listing all objects")
-    return await FileMetadata.find_all().to_list()
+    return await FileMetadata.find(FileMetadata.tenant_id == tenant_id).to_list()
 
 
 @app.put("/{bucket_name}/{filename}")
-# async def upload_object(bucket_name: str, filename: str, file: UploadFile = File(...)):
 async def upload_object(
     bucket_name: str = Path(..., title="Bucket Name", min_length=1),
     filename: str = Path(..., title="Filename", min_length=1),
     file: UploadFile = File(...),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     logger.info(f"Attempting to upload file: {filename} in bucket: {bucket_name}, size: {file.size}")
 
@@ -96,6 +137,7 @@ async def upload_object(
         )
 
     existing_file = await FileMetadata.find_one(
+        FileMetadata.tenant_id == tenant_id,
         FileMetadata.bucket_name == bucket_name,
         FileMetadata.filename == filename,
     )
@@ -118,6 +160,7 @@ async def upload_object(
         gridfs_id = await gridfs.upload_from_stream(filename=filename, source=BytesIO(file_content))
 
         await FileMetadata(
+            tenant_id=tenant_id,
             bucket_name=bucket_name,
             filename=filename,
             last_modified=current_utc_timestamp(),
@@ -144,10 +187,13 @@ async def download_object(
     bucket_name: str = Path(..., title="Bucket Name", min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$"),
     filename: str = Path(..., title="Filename", min_length=1, max_length=255),
     if_none_match: Optional[str] = Header(None),
+    tenant_id: str = Depends(get_tenant_id),
 ):
     logger.info(f"Attempting to download file: {filename} in bucket: {bucket_name}")
 
-    file_metadata = await FileMetadata.find_one(FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename)
+    file_metadata = await FileMetadata.find_one(
+        FileMetadata.tenant_id == tenant_id, FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename
+    )
     if not file_metadata:
         logger.warning(f"Download failed: File not found - {filename} in {bucket_name}")
         raise HTTPException(status_code=404, detail="File not found")
@@ -185,12 +231,14 @@ async def download_object(
 
 
 @app.delete("/{bucket_name}/{filename}")
-async def delete_object(bucket_name: str, filename: str):
-    logger.info(f"Attempting to delete file: {filename} in bucket: {bucket_name}")
-    file_metadata = await FileMetadata.find_one(FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename)
+async def delete_object(bucket_name: str, filename: str, tenant_id: str = Depends(get_tenant_id)):
+    logger.info("Attempting to delete file: %s in bucket: %s", filename, bucket_name)
+    file_metadata = await FileMetadata.find_one(
+        FileMetadata.tenant_id == tenant_id, FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename
+    )
 
     if not file_metadata:
-        logger.warning(f"Delete failed: File not found - {filename} in {bucket_name}")
+        logger.warning("Delete failed: File not found - %s in %s", filename, bucket_name)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     gridfs = app.state.gridfs
