@@ -1,20 +1,30 @@
 import hashlib
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import List, Optional
 
 from beanie import Document, PydanticObjectId, init_beanie
-from fastapi import FastAPI, File, Header, HTTPException, Query, Response, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Path, Response, UploadFile
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorGridFSBucket
 from pydantic import BaseModel
 from starlette import status
 
-MONGO_URI = "mongodb://root:secret@172.17.0.1:30001"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://root:secret@172.17.0.1:30001")
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 1024 * 1024 * 1024))  # default 1GB
 DATABASE_NAME = "sample"
 
-logging.basicConfig(level=logging.INFO)
+
+class UploadResponse(BaseModel):
+    filename: str
+    gridfs_id: str
+    file_hash: str
+
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -24,39 +34,22 @@ def current_utc_timestamp():
 
 
 class FileMetadata(Document):
+    bucket_name: str
     filename: str
     last_modified: datetime
     gridfs_id: PydanticObjectId
     file_hash: Optional[str] = None
+    content_type: str
+    file_size: Optional[int] = None
 
     class Config:
         collection = "file_metadata"
         arbitrary_types_allowed = True
+        indexes = [[("bucket_name", 1), ("filename", 1)]]
 
 
 def calculate_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-async def seed_database(gridfs: AsyncIOMotorGridFSBucket):
-    example_file_content = b"This is an example large binary file."
-    example_file_content2 = b"This is another example large binary file that changed."
-
-    gridfs_id1 = await gridfs.upload_from_stream(filename="example.bin", source=BytesIO(example_file_content))
-    gridfs_id2 = await gridfs.upload_from_stream(filename="example2.bin", source=BytesIO(example_file_content2))
-
-    await FileMetadata(
-        filename="example.bin",
-        last_modified=current_utc_timestamp(),
-        gridfs_id=gridfs_id1,
-        file_hash=calculate_hash(example_file_content),
-    ).insert()
-    await FileMetadata(
-        filename="example2.bin",
-        last_modified=current_utc_timestamp(),
-        gridfs_id=gridfs_id2,
-        file_hash=calculate_hash(example_file_content2),
-    ).insert()
 
 
 @asynccontextmanager
@@ -70,204 +63,138 @@ async def lifespan(app: FastAPI):
 
     app.state.gridfs = gridfs
 
-    # await seed_database(gridfs)
     yield
 
 
 app = FastAPI(lifespan=lifespan)
 
 
-# Old Upload and Download Endpoints
-@app.get("/download/{filename}")
-async def download_file(filename: str, filehash: Optional[str] = Query(None)):
-    file_metadata = await FileMetadata.find_one(FileMetadata.filename == filename)
-    if not file_metadata:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    gridfs = app.state.gridfs
-    gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id)
-    if not gridfs_file:
-        raise HTTPException(status_code=500, detail="GridFS file not found")
-
-    content = await gridfs_file.read()
-
-    if filehash:
-        if file_metadata.file_hash == filehash:
-            return Response(status_code=status.HTTP_304_NOT_MODIFIED)
-
-    return Response(
-        content=content,
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
-
-
-class UploadResponse(BaseModel):
-    filename: str
-    gridfs_id: str
-    file_hash: str
-
-
-@app.post("/upload", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)) -> UploadResponse:
-    gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
-    filename = file.filename if file.filename else "unnamed.bin"
-    file_hash = hashlib.sha256()
-    file_content = b""
-
-    try:
-        while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
-            file_content += chunk
-            file_hash.update(chunk)
-
-        gridfs_id = await gridfs.upload_from_stream(filename=filename, source=BytesIO(file_content))
-
-        await FileMetadata(
-            filename=filename,
-            last_modified=current_utc_timestamp(),
-            gridfs_id=gridfs_id,
-            file_hash=file_hash.hexdigest(),
-        ).insert()
-
-        return UploadResponse(filename=filename, gridfs_id=str(gridfs_id), file_hash=file_hash.hexdigest())
-
-    except Exception as e:
-        # Handle potential errors during file reading or GridFS upload
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-    finally:
-        await file.close()  # close the file stream.
-
-
-# S3 Compliant Endpoints
-@app.put("/{filename}")
-async def upload_object(filename: str, file: UploadFile = File(...)):
-    gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
-    file_hash = hashlib.sha256()
-    file_content = b""
-
-    try:
-        while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
-            file_content += chunk
-            file_hash.update(chunk)
-
-        gridfs_id = await gridfs.upload_from_stream(filename=filename, source=BytesIO(file_content))
-
-        await FileMetadata(
-            filename=filename,
-            last_modified=current_utc_timestamp(),
-            gridfs_id=gridfs_id,
-            file_hash=file_hash.hexdigest(),
-        ).insert()
-
-        return Response(status_code=status.HTTP_201_CREATED, headers={"ETag": file_hash.hexdigest()})
-
-    except Exception as e:
-        # Handle potential errors during file reading or GridFS upload
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-    finally:
-        await file.close()  # close the file stream.
-
-
-@app.get("/list", response_model=List[FileMetadata])
-async def list_objects():
+@app.get("/list")
+async def list_objects() -> List[FileMetadata]:
+    logger.info("Listing all objects")
     return await FileMetadata.find_all().to_list()
 
 
-@app.get("/{filename}")
-async def download_object(filename: str, range_header: Optional[str] = Header(None), if_none_match: Optional[str] = Header(None)):
-    """
-    Downloads a file from GridFS, supporting partial content requests and conditional GETs.
+@app.put("/{bucket_name}/{filename}")
+# async def upload_object(bucket_name: str, filename: str, file: UploadFile = File(...)):
+async def upload_object(
+    bucket_name: str = Path(..., title="Bucket Name", min_length=1),
+    filename: str = Path(..., title="Filename", min_length=1),
+    file: UploadFile = File(...),
+):
+    logger.info(f"Attempting to upload file: {filename} in bucket: {bucket_name}, size: {file.size}")
 
-    This endpoint retrieves a file from GridFS based on the provided filename. It supports:
+    if file.size is None or file.size == 0:
+        logger.warning(f"Upload rejected: Empty file - {filename} in {bucket_name}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
 
-    -   **Partial Content Requests (Range Header):**
-        -   Allows clients to request specific byte ranges of the file, enabling resumable downloads and efficient streaming of large files.
-        -   If a valid `Range` header is provided, the endpoint returns a `206 Partial Content` response with the requested byte range.
-        -   If the `Range` header is invalid, a `416 Requested Range Not Satisfiable` response is returned.
+    if file.size > MAX_FILE_SIZE:
+        logger.warning(f"Upload rejected: File size exceeded - {filename} in {bucket_name}, size: {file.size}")
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds the limit of {MAX_FILE_SIZE} bytes",
+        )
 
-    -   **Conditional GETs (If-None-Match Header):**
-        -   Supports conditional GET requests using the `If-None-Match` header.
-        -   If the provided `If-None-Match` value matches the file's ETag (file hash), a `304 Not Modified` response is returned, indicating that the client's cached version is up-to-date.
+    existing_file = await FileMetadata.find_one(
+        FileMetadata.bucket_name == bucket_name,
+        FileMetadata.filename == filename,
+    )
+    if existing_file:
+        logger.warning(f"Upload rejected: File already exists - {filename} in {bucket_name}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"File '{filename}' already exists in bucket '{bucket_name}'",
+        )
 
-    -   **Standard File Download:**
-        -   If no `Range` or `If-None-Match` headers are provided, the endpoint returns the entire file with a `200 OK` response.
+    try:
+        gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
+        file_hash = hashlib.sha256()
+        file_content = b""
 
-    Args:
-        filename (str): The name of the file to download.
-        app (FastAPI): The FastAPI application instance.
-        range_header (Optional[str]): The HTTP `Range` header, specifying the requested byte range.
-        if_none_match (Optional[str]): The HTTP `If-None-Match` header, used for conditional GETs.
+        while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
+            file_content += chunk
+            file_hash.update(chunk)
 
-    Returns:
-        Response: The file content or a response indicating partial content or not modified.
+        gridfs_id = await gridfs.upload_from_stream(filename=filename, source=BytesIO(file_content))
 
-    Raises:
-        HTTPException:
-            -   404: If the file is not found.
-            -   416: If the `Range` header is invalid.
-            -   500: If there is an error accessing GridFS.
-    """
-    file_metadata = await FileMetadata.find_one(FileMetadata.filename == filename)
+        await FileMetadata(
+            bucket_name=bucket_name,
+            filename=filename,
+            last_modified=current_utc_timestamp(),
+            gridfs_id=gridfs_id,
+            file_hash=file_hash.hexdigest(),
+            content_type=file.content_type,
+            file_size=file.size,
+        ).insert()
+
+        logger.info(
+            f"File uploaded successfully: {filename} in bucket: {bucket_name}, size: {file.size}, hash: {file_hash.hexdigest()}"
+        )
+        return Response(status_code=status.HTTP_201_CREATED, headers={"ETag": file_hash.hexdigest()})
+
+    except Exception as e:
+        logger.error(f"File upload failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+    finally:
+        await file.close()
+
+
+@app.get("/{bucket_name}/{filename}")
+async def download_object(
+    bucket_name: str = Path(..., title="Bucket Name", min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$"),
+    filename: str = Path(..., title="Filename", min_length=1, max_length=255),
+    if_none_match: Optional[str] = Header(None),
+):
+    logger.info(f"Attempting to download file: {filename} in bucket: {bucket_name}")
+
+    file_metadata = await FileMetadata.find_one(FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename)
     if not file_metadata:
+        logger.warning(f"Download failed: File not found - {filename} in {bucket_name}")
         raise HTTPException(status_code=404, detail="File not found")
 
     if if_none_match and file_metadata.file_hash == if_none_match:
+        logger.info(f"Download prevented: File not modified - {filename} in {bucket_name}")
         return Response(status_code=status.HTTP_304_NOT_MODIFIED)
 
-    gridfs = app.state.gridfs
-    gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id)
-    if not gridfs_file:
-        raise HTTPException(status_code=500, detail="GridFS file not found")
+    try:
+        gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
+        gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id)
+        if not gridfs_file:
+            logger.error(f"Download failed: GridFS file not found - {filename} in {bucket_name}")
+            raise HTTPException(status_code=500, detail="GridFS file not found")
 
-    if range_header:
-        try:
-            start, end = parse_range_header(range_header, gridfs_file.length)
-            gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id, skip=start, limit=end - start + 1)
-            content = await gridfs_file.read()
-            return Response(
-                content=content,
-                media_type="application/octet-stream",
-                status_code=status.HTTP_206_PARTIAL_CONTENT,
-                headers={
-                    "Content-Range": f"bytes {start}-{end}/{gridfs_file.length}",
-                    "Content-Length": str(len(content)),
-                    "ETag": file_metadata.file_hash,
-                },
-            )
-        except ValueError:
-            raise HTTPException(status_code=416, detail="Invalid Range")
+        async def generate_chunks():
+            chunk_size = 1024 * 1024  # 1MB chunks
+            while chunk := await gridfs_file.read(chunk_size):
+                yield chunk
 
-    else:
-        content = await gridfs_file.read()
-        return Response(
-            content=content,
-            media_type="application/octet-stream",
+        logger.info(f"File download started: {filename} in bucket: {bucket_name}, size: {file_metadata.file_size}")
+
+        return StreamingResponse(
+            generate_chunks(),
+            media_type=file_metadata.content_type,
             headers={
                 "Content-Disposition": f"attachment; filename={filename}",
                 "ETag": file_metadata.file_hash,
                 "Content-Length": str(gridfs_file.length),
             },
         )
+    except Exception as e:
+        logger.error(f"Download failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 
-def parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
-    """Parses the Range header."""
-    if not range_header.startswith("bytes="):
-        raise ValueError("Invalid range header")
-    ranges = range_header[6:].split("-")
-    start = int(ranges[0]) if ranges[0] else 0
-    end = int(ranges[1]) if ranges[1] else file_size - 1
-    if start < 0:
-        start = file_size + start
-    if end >= file_size:
-        end = file_size - 1
-    if start > end:
-        raise ValueError("Invalid range")
-    return start, end
+@app.delete("/{bucket_name}/{filename}")
+async def delete_object(bucket_name: str, filename: str):
+    logger.info(f"Attempting to delete file: {filename} in bucket: {bucket_name}")
+    file_metadata = await FileMetadata.find_one(FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename)
 
-
-@app.delete("/{filename}")
-async def delete_object(filename: str):
-    file_metadata = await FileMetadata.find_one(FileMetadata.filename == filename)
     if not file_metadata:
-        raise HTTPException(status_code=404, detail="File not found")
+        logger.warning(f"Delete failed: File not found - {filename} in {bucket_name}")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    gridfs = app.state.gridfs
+    await gridfs.delete(file_metadata.gridfs_id)
+    await file_metadata.delete()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
