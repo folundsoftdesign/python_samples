@@ -1,0 +1,18 @@
+GET http://localhost:8000/list HTTP/1.1
+
+
+###
+
+GET http://localhost:8000/License.key HTTP/1.1
+
+
+###
+
+PUT http://localhost:8000/readme.txt HTTP/1.1
+Content-Type: application/octet-stream
+
+< ./README.md
+
+### Old style Upload/Download
+
+GET http://localhost:8000/download/example.bin HTTP/1.1
