@@ -38,6 +38,7 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from fastapi import APIRouter, FastAPI
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
+# Setup logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
