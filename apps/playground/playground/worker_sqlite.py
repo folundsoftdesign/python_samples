@@ -27,6 +27,7 @@ Example usage:
 """
 
 import logging
+import traceback
 import uuid
 from contextlib import asynccontextmanager
 from enum import StrEnum
@@ -59,7 +60,13 @@ task_semaphore = anyio.Semaphore(1)  # create the semaphore
 sqlite_file = Path(__file__).parent / "../data" / "playground.db"
 sqlite_url = f"sqlite:///{sqlite_file}"
 
-engine = create_engine(sqlite_url)
+engine = create_engine(
+    sqlite_url,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=3600,
+)
 
 
 class TaskStatus(StrEnum):
@@ -67,6 +74,7 @@ class TaskStatus(StrEnum):
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class TaskCreate(BaseModel):
@@ -131,7 +139,9 @@ async def handle_database_error(
 async def handle_unexpected_error(
     session: Session, task_id: uuid.UUID, error: Exception, retries: int, max_retries: int, retry_delay: int
 ) -> None:
-    logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for task {task_id}: {error}")
+    error_message = f"{error}\n{traceback.format_exc()}"
+
+    logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for task {task_id}: {error_message}")
     if retries < max_retries:
         await anyio.sleep(retry_delay)
     else:
@@ -163,6 +173,14 @@ async def process_task(task_id: uuid.UUID, max_retries=3, retry_delay=5):
             except sqlalchemy.exc.SQLAlchemyError as db_error:
                 with Session(engine) as session:
                     await handle_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
+
+            except anyio.get_cancelled_exc_class():
+                with Session(engine) as session:
+                    task_payload = get_task_from_db(session, task_id)
+                    if task_payload:
+                        update_task_status(session, task_payload, TaskStatus.FAILED, "Task cancelled")
+                        session.commit()
+                raise
 
             except Exception as e:
                 with Session(engine) as session:
@@ -259,7 +277,9 @@ async def lifespan(app: FastAPI):
         task_group.start_soon(recover_tasks)
         task_group.start_soon(worker)
         yield
+        logger.info("Application shutdown started")
         task_group.cancel_scope.cancel()
+        logger.info("Application shutdown complete")
 
 
 app = FastAPI(lifespan=lifespan)
