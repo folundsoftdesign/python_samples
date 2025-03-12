@@ -8,7 +8,7 @@ background worker that processes tasks asynchronously.
 Key components:
 
 -   `TaskPayload`: SQLModel for storing task data in a SQLite database.
--   `process_gpu_task`: Asynchronous function simulating GPU processing.
+-   `process_task`: Asynchronous function simulating GPU processing.
 -   `worker`: Background task that continuously processes tasks from a queue.
 -   `enqueue_gpu_task`: FastAPI endpoint for enqueuing tasks.
 -   `get_tasks`: FastAPI endpoint for retrieving all tasks.
@@ -34,8 +34,10 @@ from pathlib import Path
 from typing import Tuple
 
 import anyio
+import sqlalchemy
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 # Setup logging
@@ -67,58 +69,110 @@ class TaskStatus(StrEnum):
     FAILED = "failed"
 
 
+class TaskCreate(BaseModel):
+    data: str
+
+
 class TaskPayload(SQLModel, table=True):
-    """
-    Represents a task payload stored in the database.
-
-    Attributes:
-        id: The unique identifier of the task.
-        data: The data associated with the task.
-        status: The current status of the task (e.g., in_queue, in_progress, success, failed).
-    """
-
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     data: str
     status: TaskStatus = Field(default=TaskStatus.IN_QUEUE)
+    error_message: str = Field(default=None, nullable=True)
 
 
 SQLModel.metadata.create_all(engine)
 
 
-async def process_gpu_task(task_id: uuid.UUID):
-    """
-    Simulates GPU processing for a given task ID.
+def get_session():
+    with Session(engine) as session:
+        yield session
 
-    This function acquires a semaphore to limit concurrent GPU tasks, retrieves the task
-    from the database, updates its status to "in_progress", simulates GPU processing
-    with a sleep, updates the status to "success" or "failed" based on the result,
-    and commits the changes to the database.
 
-    Args:
-        task_id: The UUID of the task to process.
-    """
-    async with task_semaphore:  # acquire the semaphore
-        try:
-            with Session(engine) as session:
-                task_payload = session.get(TaskPayload, task_id)
-                if task_payload:
-                    task_payload.status = TaskStatus.IN_PROGRESS
-                    session.add(task_payload)
-                    session.commit()
-                    logger.debug("GPU task %s started", task_id)
-                    await anyio.sleep(5)  # Simulate GPU processing
-                    logger.debug("GPU task %s completed", task_id)
-                    task_payload.status = TaskStatus.SUCCESS
-                    session.add(task_payload)
-                    session.commit()
-                else:
-                    logger.error("Task %s not found", task_id)
-        except Exception as e:
-            logger.error("Error processing GPU task %s: %s", task_id, e)
-            # Add any exception handling logic here (e.g., logging)
-        finally:
-            # The lock will be released even if an exception occurs
-            pass
+def get_task_from_db(session: Session, task_id: uuid.UUID) -> TaskPayload | None:
+    return session.get(TaskPayload, task_id)
+
+
+def update_task_status(session: Session, task_payload: TaskPayload, status: TaskStatus, error_message: str | None = None) -> None:
+    task_payload.status = status
+    if error_message:
+        task_payload.error_message = error_message
+    session.add(task_payload)
+    session.commit()
+
+
+async def do_something(task_id: uuid.UUID):
+    logger.debug("Processing task %s", task_id)
+
+    with Session(engine) as session:
+        task_payload = get_task_from_db(session, task_id)
+        if task_payload:
+            logger.debug("Task %s data: %s", task_id, task_payload.data)
+
+    for i in range(5):
+        await anyio.sleep(1)
+        logger.debug(f"Task {task_id} progress: {i + 1}/5")
+
+    logger.debug("Task %s completed", task_id)
+
+
+async def handle_database_error(
+    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, max_retries: int, retry_delay: int
+) -> None:
+    logger.error(f"Database error (retry {retries + 1}/{max_retries}) for task {task_id}: {db_error}")
+    if retries < max_retries:
+        await anyio.sleep(retry_delay)
+    else:
+        logger.error(f"Max retries exceeded for task {task_id}")
+        task_payload = get_task_from_db(session, task_id)
+        if task_payload:
+            update_task_status(session, task_payload, TaskStatus.FAILED, str(db_error))
+
+
+async def handle_unexpected_error(
+    session: Session, task_id: uuid.UUID, error: Exception, retries: int, max_retries: int, retry_delay: int
+) -> None:
+    logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for task {task_id}: {error}")
+    if retries < max_retries:
+        await anyio.sleep(retry_delay)
+    else:
+        logger.error(f"Max retries exceeded for task {task_id}")
+        task_payload = get_task_from_db(session, task_id)
+        if task_payload:
+            update_task_status(session, task_payload, TaskStatus.FAILED, str(error))
+
+
+async def process_task(task_id: uuid.UUID, max_retries=3, retry_delay=5):
+    retries = 0
+    while retries < max_retries:
+        async with task_semaphore:
+            try:
+                with Session(engine) as session:
+                    task_payload = get_task_from_db(session, task_id)
+
+                    if not task_payload:
+                        logger.error("Task %s not found", task_id)
+                        return
+
+                    update_task_status(session, task_payload, TaskStatus.IN_PROGRESS)
+
+                    await do_something(task_id)
+
+                    update_task_status(session, task_payload, TaskStatus.SUCCESS)
+                    return
+
+            except sqlalchemy.exc.SQLAlchemyError as db_error:
+                with Session(engine) as session:
+                    await handle_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
+
+            except Exception as e:
+                with Session(engine) as session:
+                    await handle_unexpected_error(session, task_id, e, retries, max_retries, retry_delay)
+
+            finally:
+                if retries > 0:
+                    logger.debug(f"Task {task_id} retried {retries} times.")
+
+            retries += 1
 
 
 async def recover_tasks():
@@ -141,15 +195,15 @@ async def worker():
     Background worker that continuously retrieves task IDs from the queue and processes them.
 
     This function creates a task group to manage concurrent task processing. It listens for
-    task IDs from the `receive_stream` and starts a `process_gpu_task` coroutine for each ID.
+    task IDs from the `receive_stream` and starts a `process_task` coroutine for each ID.
     """
     async with anyio.create_task_group() as task_group:  # create a task group
         async for task_id in receive_stream:
-            task_group.start_soon(process_gpu_task, task_id)  # start the task in the task group.
+            task_group.start_soon(process_task, task_id)  # start the task in the task group.
 
 
 @router.post("")
-async def enqueue_gpu_task(task: TaskPayload):
+async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(get_session)):
     """
     Enqueues a GPU task by adding it to the database and sending its ID to the worker queue.
 
@@ -159,29 +213,28 @@ async def enqueue_gpu_task(task: TaskPayload):
     Returns:
         A dictionary with a message indicating the task was enqueued.
     """
-    with Session(engine) as session:
-        session.add(task)
-        session.commit()
-        task_id = task.id
+    task = TaskPayload(data=task_create.data)
+    session.add(task)
+    session.commit()
+    task_id = task.id
     await send_stream.send(task_id)
     return {"message": f"GPU task {task_id} enqueued"}
 
 
 @router.get("")
-async def get_tasks():
+async def get_tasks(session: Session = Depends(get_session)):
     """
     Retrieves all tasks from the database.
 
     Returns:
         A list of TaskPayload objects.
     """
-    with Session(engine) as session:
-        tasks = session.exec(select(TaskPayload)).all()
+    tasks = session.exec(select(TaskPayload)).all()
     return tasks
 
 
 @router.get("/{task_id}")
-async def get_task(task_id: uuid.UUID):
+async def get_task(task_id: uuid.UUID, session: Session = Depends(get_session)):
     """
     Retrieves a specific task from the database by its ID.
 
@@ -191,24 +244,18 @@ async def get_task(task_id: uuid.UUID):
     Returns:
         The TaskPayload object if found, otherwise None.
     """
-    with Session(engine) as session:
-        task = session.get(TaskPayload, task_id)
+    task = session.get(TaskPayload, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
     return task
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifespan context manager for the FastAPI application.
-
-    Starts the worker and task recovery tasks concurrently when the application starts,
-    and cancels them when the application stops.
-
-    Args:
-        app: The FastAPI application instance.
-    """
     task_group = anyio.create_task_group()
     async with task_group:
+        app.extra["task_group"] = task_group
+        app.extra["process_task"] = process_task
         task_group.start_soon(recover_tasks)
         task_group.start_soon(worker)
         yield
