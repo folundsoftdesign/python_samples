@@ -1,13 +1,11 @@
 # test_worker_sqllite.py
 
-import asyncio
 import uuid
 from typing import Generator
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from playground.worker_sqlite import (
+from playground.worker_sqlite import (  # Replace .main with your module name
     TaskPayload,
     TaskStatus,
     app,
