@@ -151,40 +151,36 @@ async def handle_unexpected_error(
             update_task_status(session, task_payload, TaskStatus.FAILED, str(error))
 
 
-async def process_task(task_id: uuid.UUID, max_retries=3, retry_delay=5):
+async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retry_delay=5):
     retries = 0
     while retries < max_retries:
         async with task_semaphore:
             try:
-                with Session(engine) as session:
-                    task_payload = get_task_from_db(session, task_id)
+                task_payload = get_task_from_db(session, task_id)
 
-                    if not task_payload:
-                        logger.error("Task %s not found", task_id)
-                        return
-
-                    update_task_status(session, task_payload, TaskStatus.IN_PROGRESS)
-
-                    await do_something(task_id)
-
-                    update_task_status(session, task_payload, TaskStatus.SUCCESS)
+                if not task_payload:
+                    logger.error("Task %s not found", task_id)
                     return
 
+                update_task_status(session, task_payload, TaskStatus.IN_PROGRESS)
+
+                await do_something(task_id)
+
+                update_task_status(session, task_payload, TaskStatus.SUCCESS)
+                return
+
             except sqlalchemy.exc.SQLAlchemyError as db_error:
-                with Session(engine) as session:
-                    await handle_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
+                await handle_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
 
             except anyio.get_cancelled_exc_class():
-                with Session(engine) as session:
-                    task_payload = get_task_from_db(session, task_id)
-                    if task_payload:
-                        update_task_status(session, task_payload, TaskStatus.FAILED, "Task cancelled")
-                        session.commit()
+                task_payload = get_task_from_db(session, task_id)
+                if task_payload:
+                    update_task_status(session, task_payload, TaskStatus.FAILED, "Task cancelled")
+                    session.commit()
                 raise
 
             except Exception as e:
-                with Session(engine) as session:
-                    await handle_unexpected_error(session, task_id, e, retries, max_retries, retry_delay)
+                await handle_unexpected_error(session, task_id, e, retries, max_retries, retry_delay)
 
             finally:
                 if retries > 0:
@@ -217,7 +213,8 @@ async def worker():
     """
     async with anyio.create_task_group() as task_group:  # create a task group
         async for task_id in receive_stream:
-            task_group.start_soon(process_task, task_id)  # start the task in the task group.
+            with Session(engine) as session:
+                task_group.start_soon(process_task, task_id, session)  # start the task in the task group.
 
 
 @router.post("")
