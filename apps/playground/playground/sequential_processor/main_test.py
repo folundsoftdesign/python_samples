@@ -5,15 +5,15 @@ from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from playground.sequential_processor.main import (
+from sqlmodel import Session, create_engine
+
+from .main import (
     TaskPayload,
     TaskStatus,
     app,
     get_task_from_db,
     update_task_status,
 )
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 engine = create_engine("sqlite:///:memory:")
 TaskPayload.metadata.create_all(engine)

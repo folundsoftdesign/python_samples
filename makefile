@@ -37,11 +37,11 @@ lint:
 run-sample:
 	cd apps/sample && uv run fastapi dev sample/server.py
 
-run-worker:
-	uv run --directory=apps/playground fastapi dev playground/worker_sqlite.py
-
 run-sequential-processor:
 	uv run --directory=apps/playground fastapi dev playground/sequential_processor/main.py
+
+run-file-storage:
+	uv run --directory=apps/playground fastapi dev playground/file_storage/main.py
 
 # MONGO
 # Connection string inside dev container: mongodb://root:secret@172.17.0.1:30001/?ssl=false&readPreference=primary
