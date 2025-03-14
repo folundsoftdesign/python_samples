@@ -28,6 +28,8 @@ Example usage:
 3.  Send a GET request to `/worker` or `/worker/{task_id}` to retrieve task status.
 """
 
+import datetime
+import functools
 import logging
 import traceback
 import uuid
@@ -41,11 +43,27 @@ import sqlalchemy
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import JSON, Column, Field, Index, Session, SQLModel, create_engine, select
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+
+# Utilities
+def current_utc_timestamp():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+# Constants
+CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
+
+
+# Exceptions
+class TaskNotFound(ValueError):
+    """Exception raised when a task is not found."""
+
+    pass
 
 
 router = APIRouter(prefix="/worker")
@@ -56,7 +74,7 @@ send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectRecei
 )
 send_stream, receive_stream = send_receive_streams
 task_lock = anyio.Lock()
-task_semaphore = anyio.Semaphore(1)  # create the semaphore
+task_semaphore = anyio.Semaphore(1)  # Limit the number of concurrent tasks to 1
 
 
 sqlite_file = Path(__file__).parent / "../../data" / "sequential_processor.db"
@@ -80,14 +98,22 @@ class TaskStatus(StrEnum):
 
 
 class TaskCreate(BaseModel):
-    data: str
+    tenant: str | None = None
+    data: dict
 
 
 class TaskPayload(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    data: str
-    status: TaskStatus = Field(default=TaskStatus.IN_QUEUE)
+    tenant: str = Field(default="*SYSTEM")
+    data: dict = Field(sa_column=Column(JSON))
+    result: dict = Field(default=None, sa_column=Column(JSON))
+
+    status: TaskStatus = Field(default=TaskStatus.IN_QUEUE, index=True)
+    created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
+    completed_at: datetime.datetime = Field(default=None, nullable=True)
     error_message: str = Field(default=None, nullable=True)
+
+    __table_args__ = (Index("status_index", "status"),)
 
 
 SQLModel.metadata.create_all(engine)
@@ -102,27 +128,46 @@ def get_task_from_db(session: Session, task_id: uuid.UUID) -> TaskPayload | None
     return session.get(TaskPayload, task_id)
 
 
-def update_task_status(session: Session, task_payload: TaskPayload, status: TaskStatus, error_message: str | None = None) -> None:
+def update_task_status(
+    session: Session, task_payload: TaskPayload, status: TaskStatus, error_message: str | None = None, result: dict | None = None
+) -> None:
     task_payload.status = status
     if error_message:
         task_payload.error_message = error_message
+    if result:
+        task_payload.result = result
+    if status in [TaskStatus.SUCCESS, TaskStatus.FAILED]:
+        task_payload.completed_at = current_utc_timestamp()
     session.add(task_payload)
     session.commit()
 
 
-async def do_something(task_id: uuid.UUID):
+async def do_something(task_id: uuid.UUID, *, session: Session) -> dict:
     logger.debug("Processing task %s", task_id)
 
-    with Session(engine) as session:
-        task_payload = get_task_from_db(session, task_id)
-        if task_payload:
-            logger.debug("Task %s data: %s", task_id, task_payload.data)
+    task_payload = get_task_from_db(session, task_id)
+    if not task_payload:
+        logger.error(f"Task {task_id} not found in do_something")
+        raise TaskNotFound(f"Task {task_id} not found")
+
+    logger.debug("Task %s data: %s", task_id, task_payload.data)
+
+    data = task_payload.data
 
     for i in range(5):
         await anyio.sleep(1)
         logger.debug(f"Task {task_id} progress: {i + 1}/5")
 
+    result_dict = {
+        "task_id": str(task_id),
+        "status": "completed",
+        "data": data,
+        "processed_at": str(anyio.current_time()),
+    }
+
     logger.debug("Task %s completed", task_id)
+
+    return result_dict
 
 
 async def handle_database_error(
@@ -166,9 +211,13 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
 
                 update_task_status(session, task_payload, TaskStatus.IN_PROGRESS)
 
-                await do_something(task_id)
+                result = await do_something(task_id, session=session)
 
-                update_task_status(session, task_payload, TaskStatus.SUCCESS)
+                update_task_status(session, task_payload, TaskStatus.SUCCESS, result=result)
+                return
+
+            except TaskNotFound as e:
+                logger.error(f"Task {task_id} not found: {e}. Not retrying.")
                 return
 
             except sqlalchemy.exc.SQLAlchemyError as db_error:
@@ -219,6 +268,37 @@ async def worker():
                 task_group.start_soon(process_task, task_id, session)  # start the task in the task group.
 
 
+def cleanup_database(session: Session, retention_hours: int = 10, target_status: TaskStatus = TaskStatus.SUCCESS):
+    """
+    Cleans up the database by deleting SUCCESS tasks older than retention_hours.
+    """
+    cutoff_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=retention_hours)
+
+    tasks_to_delete = session.exec(
+        select(TaskPayload).where(TaskPayload.status == target_status, TaskPayload.created_at < cutoff_time)
+    ).all()
+
+    for task in tasks_to_delete:
+        session.delete(task)
+        logging.info(f"Deleted task {task.id}")
+
+    session.commit()
+
+
+async def run_cleanup_periodically(
+    cleanup_interval_seconds: int = CLEAN_UP_INTERVAL, retention_hours: int = 24, target_status: TaskStatus = TaskStatus.SUCCESS
+):
+    """
+    Runs the database cleanup periodically for SUCCESS tasks.
+    """
+    while True:
+        await anyio.sleep(cleanup_interval_seconds)
+        logging.info("Starting %s task cleanup", target_status)
+        with Session(engine) as session:
+            cleanup_database(session, retention_hours, target_status)
+        logging.info("Cleanup completed for %s tasks", target_status)
+
+
 @router.post("")
 async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(get_session)):
     """
@@ -230,12 +310,12 @@ async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(g
     Returns:
         A dictionary with a message indicating the task was enqueued.
     """
-    task = TaskPayload(data=task_create.data)
+    task = TaskPayload(tenant=task_create.tenant, data=task_create.data)
     session.add(task)
     session.commit()
     task_id = task.id
     await send_stream.send(task_id)
-    return {"message": f"GPU task {task_id} enqueued"}
+    return {"message": f"Task {task_id} enqueued at {task.created_at}"}
 
 
 @router.get("")
@@ -267,6 +347,10 @@ async def get_task(task_id: uuid.UUID, session: Session = Depends(get_session)):
     return task
 
 
+cleanup_success = functools.partial(run_cleanup_periodically, target_status=TaskStatus.SUCCESS, retention_hours=24)
+cleanup_failed = functools.partial(run_cleanup_periodically, target_status=TaskStatus.FAILED, retention_hours=24)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task_group = anyio.create_task_group()
@@ -275,6 +359,8 @@ async def lifespan(app: FastAPI):
         app.extra["process_task"] = process_task
         task_group.start_soon(recover_tasks)
         task_group.start_soon(worker)
+        task_group.start_soon(cleanup_success)
+        task_group.start_soon(cleanup_failed)
         yield
         logger.info("Application shutdown started")
         task_group.cancel_scope.cancel()
