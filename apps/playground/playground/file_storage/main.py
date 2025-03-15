@@ -4,11 +4,11 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import jwt
 from beanie import Document, PydanticObjectId, init_beanie
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Path, Response, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorGridFSBucket
 from pydantic import BaseModel, StringConstraints
@@ -110,19 +110,34 @@ async def generate_token(request: TokenRequest = Depends(), admin_key: str = Dep
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
-@app.get("/list")
-async def list_objects(tenant_id: str = Depends(get_tenant_id)) -> List[FileMetadata]:
-    logger.info("Listing all objects")
-    return await FileMetadata.find(FileMetadata.tenant_id == tenant_id).to_list()
+class FilesListBody(BaseModel):
+    bucket_name: Optional[Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]] = None
 
 
-@app.put("/{bucket_name}/{filename}")
-async def upload_object(
-    bucket_name: str = Path(..., title="Bucket Name", min_length=1),
-    filename: str = Path(..., title="Filename", min_length=1),
-    file: UploadFile = File(...),
+@app.post("/files/list")
+async def list_files(body: FilesListBody, tenant_id: str = Depends(get_tenant_id)):
+    bucket_name = body.bucket_name
+    logger.info("Listing files in bucket: %s", bucket_name)
+
+    if bucket_name is None:
+        return await FileMetadata.find(FileMetadata.tenant_id == tenant_id).to_list()
+
+    return await FileMetadata.find(FileMetadata.tenant_id == tenant_id, FileMetadata.bucket_name == bucket_name).to_list()
+
+
+@app.post("/files/upload")
+async def upload_file(
+    file: Annotated[UploadFile, File(description="The file to upload")],
+    bucket_name: Annotated[str, Form()],
+    file_name: Annotated[Optional[str], Form()] = None,
     tenant_id: str = Depends(get_tenant_id),
 ):
+    filename = file_name if file_name is not None else file.filename
+
+    if filename is None:
+        logger.warning("Upload rejected: Empty filename")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty filename")
+
     logger.info(f"Attempting to upload file: {filename} in bucket: {bucket_name}, size: {file.size}")
 
     if file.size is None or file.size == 0:
@@ -182,13 +197,18 @@ async def upload_object(
         await file.close()
 
 
-@app.get("/{bucket_name}/{filename}")
-async def download_object(
-    bucket_name: str = Path(..., title="Bucket Name", min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$"),
-    filename: str = Path(..., title="Filename", min_length=1, max_length=255),
-    if_none_match: Optional[str] = Header(None),
-    tenant_id: str = Depends(get_tenant_id),
-):
+class FilesDownloadBody(BaseModel):
+    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
+    filename: Annotated[str, Body(..., min_length=1, max_length=255)]
+    if_none_match: Optional[str] = None
+
+
+@app.post("/files/download")
+async def download_object(body: FilesDownloadBody, tenant_id: str = Depends(get_tenant_id)):
+    bucket_name = body.bucket_name
+    filename = body.filename
+    if_none_match = body.if_none_match
+
     logger.info(f"Attempting to download file: {filename} in bucket: {bucket_name}")
 
     file_metadata = await FileMetadata.find_one(
@@ -230,8 +250,16 @@ async def download_object(
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 
-@app.delete("/{bucket_name}/{filename}")
-async def delete_object(bucket_name: str, filename: str, tenant_id: str = Depends(get_tenant_id)):
+class FilesDeleteBody(BaseModel):
+    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
+    filename: Annotated[str, Body(..., min_length=1, max_length=255)]
+
+
+@app.post("/files/delete")
+async def delete_object(body: FilesDeleteBody, tenant_id: str = Depends(get_tenant_id)):
+    bucket_name = body.bucket_name
+    filename = body.filename
+
     logger.info("Attempting to delete file: %s in bucket: %s", filename, bucket_name)
     file_metadata = await FileMetadata.find_one(
         FileMetadata.tenant_id == tenant_id, FileMetadata.bucket_name == bucket_name, FileMetadata.filename == filename
@@ -246,3 +274,36 @@ async def delete_object(bucket_name: str, filename: str, tenant_id: str = Depend
     await file_metadata.delete()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+class BucketDeleteBody(BaseModel):
+    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
+    force: Optional[bool] = False
+
+
+@app.post("/buckets/delete")
+async def delete_bucket(body: BucketDeleteBody, tenant_id: str = Depends(get_tenant_id)):
+    bucket_name = body.bucket_name
+    force = body.force
+
+    logger.info("Attempting to delete bucket: %s", bucket_name)
+
+    files = await FileMetadata.find(FileMetadata.tenant_id == tenant_id, FileMetadata.bucket_name == bucket_name).to_list()
+
+    if not force and files:
+        logger.warning("Bucket delete rejected: Files exist in bucket - %s", bucket_name)
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bucket not empty")
+
+    # Delete gridfs file instances
+    gridfs = app.state.gridfs
+    for file in files:
+        await gridfs.delete(file.gridfs_id)
+        await file.delete()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/buckets/list")
+async def list_buckets(tenant_id: str = Depends(get_tenant_id)):
+    logger.info("Listing buckets")
+    return await FileMetadata.distinct("bucket_name", FileMetadata.tenant_id == tenant_id)

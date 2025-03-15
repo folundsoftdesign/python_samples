@@ -1,18 +1,51 @@
-GET http://localhost:8000/list HTTP/1.1
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
+POST http://localhost:8000/files/list HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQyMDU4NDQzLjc3MjQ5NSwiaWF0IjoxNzQyMDU0ODQzLjc3MjQ5NX0.DIis_zw175fWLKmqQmgoMhX26stdYUoQx_rgPKwf7MM
 
+{}
 
 ###
 
-GET http://localhost:8000/images/test2.jpg HTTP/1.1
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
+POST http://localhost:8000/files/list HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQyMDU4NDQzLjc3MjQ5NSwiaWF0IjoxNzQyMDU0ODQzLjc3MjQ5NX0.DIis_zw175fWLKmqQmgoMhX26stdYUoQx_rgPKwf7MM
 
+{ 
+    "bucket_name": "images" 
+}
+
+###
+
+POST http://localhost:8000/files/download HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQyMDU0NjY5LjExNDMyOSwiaWF0IjoxNzQyMDUxMDY5LjExNDMyOX0.9KDHXatnxU_jALN72quW7I_b3fTBVXv-meC34Rue930
+
+{
+    "bucket_name": "images",
+    "filename": "test.jpg"
+}
 
 ### 
 
-DELETE http://localhost:8000/images/test2.jpg HTTP/1.1
+POST http://localhost:8000/files/delete HTTP/1.1
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQxNjM2MDUzLjYwNjkxLCJpYXQiOjE3NDE2MzI0NTMuNjA2OTF9.WHQn7sdJveBQNX5ujNss0JfJ20UGU1uGM7XLS1-O55Y
 
+{
+    "bucket_name": "images",
+    "filename": "test.jpg"
+}
+
+###
+
+POST http://localhost:8000/buckets/list HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQyMDU5MzAyLjcxMjk1MiwiaWF0IjoxNzQyMDU1NzAyLjcxMjk1Mn0.oxL2JYC3UFShdMQcSifE_SSJZZDlsU0cDj6PbR09lwI
+
+###
+
+POST http://localhost:8000/buckets/delete HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJwbGF5Z3JvdW5kIiwiZXhwIjoxNzQyMDU5MzAyLjcxMjk1MiwiaWF0IjoxNzQyMDU1NzAyLjcxMjk1Mn0.oxL2JYC3UFShdMQcSifE_SSJZZDlsU0cDj6PbR09lwI
+
+{
+    "bucket_name": "images",
+    "force": true
+}
 
 ###
 
