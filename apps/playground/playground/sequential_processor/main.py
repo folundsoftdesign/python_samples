@@ -29,7 +29,6 @@ Example usage:
 """
 
 import datetime
-import functools
 import logging
 import traceback
 import uuid
@@ -41,6 +40,7 @@ from typing import Tuple
 import anyio
 import sqlalchemy
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlmodel import JSON, Column, Field, Index, Session, SQLModel, create_engine, select
@@ -285,18 +285,14 @@ def cleanup_database(session: Session, retention_hours: int = 10, target_status:
     session.commit()
 
 
-async def run_cleanup_periodically(
-    cleanup_interval_seconds: int = CLEAN_UP_INTERVAL, retention_hours: int = 24, target_status: TaskStatus = TaskStatus.SUCCESS
-):
+async def run_cleanup(retention_hours: int = 24, target_status: TaskStatus = TaskStatus.SUCCESS):
     """
     Runs the database cleanup periodically for SUCCESS tasks.
     """
-    while True:
-        await anyio.sleep(cleanup_interval_seconds)
-        logging.info("Starting %s task cleanup", target_status)
-        with Session(engine) as session:
-            cleanup_database(session, retention_hours, target_status)
-        logging.info("Cleanup completed for %s tasks", target_status)
+    logging.info("Starting %s task cleanup", target_status)
+    with Session(engine) as session:
+        cleanup_database(session, retention_hours, target_status)
+    logging.info("Cleanup completed for %s tasks", target_status)
 
 
 @router.post("")
@@ -347,10 +343,6 @@ async def get_task(task_id: uuid.UUID, session: Session = Depends(get_session)):
     return task
 
 
-cleanup_success = functools.partial(run_cleanup_periodically, target_status=TaskStatus.SUCCESS, retention_hours=24)
-cleanup_failed = functools.partial(run_cleanup_periodically, target_status=TaskStatus.FAILED, retention_hours=24)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task_group = anyio.create_task_group()
@@ -359,11 +351,16 @@ async def lifespan(app: FastAPI):
         app.extra["process_task"] = process_task
         task_group.start_soon(recover_tasks)
         task_group.start_soon(worker)
-        task_group.start_soon(cleanup_success)
-        task_group.start_soon(cleanup_failed)
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(run_cleanup, "cron", hour=3, args=[24, TaskStatus.SUCCESS])
+        scheduler.add_job(run_cleanup, "cron", hour=3, args=[24, TaskStatus.FAILED])
+        scheduler.start()
+
         yield
         logger.info("Application shutdown started")
         task_group.cancel_scope.cancel()
+        scheduler.shutdown()
         logger.info("Application shutdown complete")
 
 
