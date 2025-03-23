@@ -1,6 +1,8 @@
-from beanie import Document
+from beanie import Document, Indexed
+from datetime import datetime
+from typing import Annotated
 
 
 class JobLock(Document):
     job_id: str
-    expireAt: float
+    expire_at: Annotated[datetime, Indexed(expireAfterSeconds=0)]

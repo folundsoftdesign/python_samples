@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import time
 import uuid
 from apscheduler.executors.pool import ProcessPoolExecutor, ThreadPoolExecutor
@@ -24,7 +25,7 @@ def start_scheduler(scheduler: AsyncIOScheduler) -> None:
 
 
 def stop_scheduler(scheduler: AsyncIOScheduler) -> None:
-    scheduler.shutdown()
+    scheduler.shutdown(wait=True)
 
 
 async def health_job(job_id=None):
@@ -34,10 +35,10 @@ async def health_job(job_id=None):
 
     lock_ttl = 10  # 10 seconds lock
 
-    expire_at = time.time() + lock_ttl
+    expire_at = datetime.now(timezone.utc) + timedelta(seconds=lock_ttl)
 
     try:
-        lock = JobLock(job_id=job_id, expireAt=expire_at)
+        lock = JobLock(job_id=job_id, expire_at=expire_at)
         await lock.insert()
 
         logger.info("Health check job is running")
