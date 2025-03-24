@@ -17,6 +17,8 @@ dependencies = [
     "fastapi-problem>=0.10.6",
     "sqlmodel>=0.0.24",
     "pyjwt>=2.10.1",
+    "apscheduler>=3.11.0",
+
 ]
 
 [build-system]
