@@ -16,16 +16,20 @@ from sample.constants import (
     HEADER_NAME_PROCESS_TIME,
     HEADER_REQUEST_ID,
 )
-from sample.core import (
+from sample.features.routers import api_router
+from sample.middlewares.timing_metrics import TimingMetricsMiddleware
+from sample.models import __beanie_models__
+
+from .core import (
     close_database,
     configure_logger,
     initialize_database,
     logger,
     settings,
+    setup_scheduler,
+    start_scheduler,
+    stop_scheduler,
 )
-from sample.features.routers import api_router
-from sample.middlewares.timing_metrics import TimingMetricsMiddleware
-from sample.models import __beanie_models__
 
 configure_logger(settings=settings)
 
@@ -34,12 +38,21 @@ configure_logger(settings=settings)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manages the application's lifespan, including database connection."""
     logger.debug("FastAPI app startup - lifespan")
-    await initialize_database(app, __beanie_models__)
     RunVar[CapacityLimiter]("_default_thread_limiter").set(CapacityLimiter(1))
+
+    database = await initialize_database(__beanie_models__)
+    scheduler = setup_scheduler(database=database)
+
+    app.state.database = database
+    app.state.scheduler = scheduler
+
+    start_scheduler(scheduler)
+
     try:
         yield
     finally:
-        await close_database(app)
+        await close_database(database)
+        stop_scheduler(scheduler)
 
 
 def app_factory() -> FastAPI:
