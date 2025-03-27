@@ -35,14 +35,14 @@ import uuid
 from contextlib import asynccontextmanager
 from enum import StrEnum
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import anyio
 import sqlalchemy
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from sqlmodel import JSON, Column, Field, Index, Session, SQLModel, create_engine, select
 
 # Setup logging
@@ -98,8 +98,9 @@ class TaskStatus(StrEnum):
 
 
 class TaskCreate(BaseModel):
-    tenant: str | None = None
+    tenant: Optional[str] = Field(default=None, description="An optional tenand")
     data: dict
+    callback: Optional[HttpUrl] = Field(default=None, description="The callback URL or identifier for the task.")
 
 
 class TaskPayload(SQLModel, table=True):
@@ -112,6 +113,8 @@ class TaskPayload(SQLModel, table=True):
     created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
     completed_at: datetime.datetime = Field(default=None, nullable=True)
     error_message: str = Field(default=None, nullable=True)
+
+    callback: str = Field(default=None, nullable=True)
 
     __table_args__ = (Index("status_index", "status"),)
 
@@ -306,7 +309,7 @@ async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(g
     Returns:
         A dictionary with a message indicating the task was enqueued.
     """
-    task = TaskPayload(tenant=task_create.tenant, data=task_create.data)
+    task = TaskPayload(tenant=task_create.tenant, data=task_create.data, callback=task_create.callback)
     session.add(task)
     session.commit()
     task_id = task.id
