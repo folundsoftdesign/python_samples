@@ -3,7 +3,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "postStartCommand": "uv sync",
+  "postStartCommand": "uv sync && uv run pre-commit install",
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/jungaretti/features/make:1": {},
