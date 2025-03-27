@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
-import time
 import uuid
-from apscheduler.executors.pool import ProcessPoolExecutor, ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from sample.models.job_lock_beanie import JobLock
 from pymongo.errors import DuplicateKeyError
+
+from sample.models.job_lock_beanie import JobLock
 
 from .logger import logger
 

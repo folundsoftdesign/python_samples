@@ -66,7 +66,7 @@ async def test_cancel_task_not_found(client: TestClient):
 @pytest.mark.asyncio
 async def test_get_task_from_db(db: Session):
     task = create_task(db, "db_task")
-    retrieved_task = get_task_from_db(db, task.id)
+    retrieved_task = get_task_from_db(db, task.task_id)
     assert retrieved_task == task
 
 
@@ -74,7 +74,7 @@ async def test_get_task_from_db(db: Session):
 async def test_update_task_status(db: Session):
     task = create_task(db, "status_task")
     update_task_status(db, task, TaskStatus.IN_PROGRESS)
-    updated_task = db.get(TaskPayload, task.id)
+    updated_task = db.get(TaskPayload, task.task_id)
     assert updated_task is not None
     assert updated_task.status == TaskStatus.IN_PROGRESS
 
@@ -83,7 +83,7 @@ async def test_update_task_status(db: Session):
 async def test_update_task_status_with_error(db: Session):
     task = create_task(db, "error_task")
     update_task_status(db, task, TaskStatus.FAILED, "test error")
-    updated_task = db.get(TaskPayload, task.id)
+    updated_task = db.get(TaskPayload, task.task_id)
     assert updated_task is not None
     assert updated_task.status == TaskStatus.FAILED
     assert updated_task.error_message == "test error"

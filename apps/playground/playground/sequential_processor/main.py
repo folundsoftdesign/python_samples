@@ -68,14 +68,21 @@ class TaskNotFound(ValueError):
 
 router = APIRouter(prefix="/worker")
 
-# Router-specific state
-send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
+# Task handling streams, locks and semaphore
+task_send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
     anyio.create_memory_object_stream()
 )
-send_stream, receive_stream = send_receive_streams
+task_send_stream, task_receive_stream = task_send_receive_streams
 task_lock = anyio.Lock()
 task_semaphore = anyio.Semaphore(1)  # Limit the number of concurrent tasks to 1
 
+# Callback handling streams, locks and semaphore
+callback_send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
+    anyio.create_memory_object_stream()
+)
+callback_send_stream, callback_receive_stream = callback_send_receive_streams
+callback_lock = anyio.Lock()
+callback_semaphore = anyio.Semaphore(1)  # Limit the number of concurrent callbacks to 1
 
 sqlite_file = Path(__file__).parent / "../../data" / "sequential_processor.db"
 sqlite_url = f"sqlite:///{sqlite_file}"
@@ -97,6 +104,14 @@ class TaskStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class CallbackStatus(StrEnum):
+    IN_QUEUE = "in_queue"
+    IN_PROGRESS = "in_progress"
+    SUCCESS = "success"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class TaskCreate(BaseModel):
     tenant: Optional[str] = Field(default=None, description="An optional tenand")
     data: dict
@@ -104,17 +119,29 @@ class TaskCreate(BaseModel):
 
 
 class TaskPayload(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    task_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     tenant: str = Field(default="*SYSTEM")
     data: dict = Field(sa_column=Column(JSON))
     result: dict = Field(default=None, sa_column=Column(JSON))
+
+    callback: Optional[HttpUrl] = Field(default=None)
 
     status: TaskStatus = Field(default=TaskStatus.IN_QUEUE, index=True)
     created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
     completed_at: datetime.datetime = Field(default=None, nullable=True)
     error_message: str = Field(default=None, nullable=True)
 
-    callback: str = Field(default=None, nullable=True)
+    __table_args__ = (Index("status_index", "status"),)
+
+
+class CallbackPayload(SQLModel, table=True):
+    task_id: uuid.UUID = Field(primary_key=True)
+    callback: Optional[HttpUrl]
+
+    status: CallbackStatus = Field(default=CallbackStatus.IN_QUEUE, index=True)
+    created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
+    completed_at: datetime.datetime = Field(default=None, nullable=True)
+    error_message: str = Field(default=None, nullable=True)
 
     __table_args__ = (Index("status_index", "status"),)
 
@@ -142,6 +169,31 @@ def update_task_status(
     if status in [TaskStatus.SUCCESS, TaskStatus.FAILED]:
         task_payload.completed_at = current_utc_timestamp()
     session.add(task_payload)
+    session.commit()
+
+
+def get_callback(session: Session, task_id: uuid.UUID) -> CallbackPayload | None:
+    return session.get(CallbackPayload, task_id)
+
+
+def add_callback(session: Session, task_id: uuid.UUID, callback: str) -> CallbackPayload:
+    callback_payload = CallbackPayload(task_id=task_id, callback=callback)
+
+    session.add(callback_payload)
+    session.commit()
+
+    return callback_payload
+
+
+def update_callback_status(
+    session: Session, callback_payload: CallbackPayload, status: CallbackStatus, status_message: str | None = None
+) -> None:
+    callback_payload.status = status
+    if status_message:
+        callback_payload.status_message = status_message
+    if status in [CallbackStatus.SUCCESS, CallbackStatus.FAILED]:
+        callback_payload.completed_at = current_utc_timestamp()
+    session.add(callback_payload)
     session.commit()
 
 
@@ -229,7 +281,7 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
             except anyio.get_cancelled_exc_class():
                 task_payload = get_task_from_db(session, task_id)
                 if task_payload:
-                    update_task_status(session, task_payload, TaskStatus.FAILED, "Task cancelled")
+                    update_task_status(session, task_payload, TaskStatus.CANCELLED, "Task cancelled")
                     session.commit()
                 raise
 
@@ -239,6 +291,61 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
             finally:
                 if retries > 0:
                     logger.debug(f"Task {task_id} retried {retries} times.")
+
+            retries += 1
+
+
+async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, retry_delay=5):
+    retries = 0
+    while retries < max_retries:
+        async with callback_semaphore:
+            try:
+                callback_payload = get_callback(session, task_id)
+                task_payload = get_task_from_db(session, task_id)
+
+                if not callback_payload or not task_payload:
+                    logger.error("Failed to resolve information for callback %s", task_id)
+                    return
+
+                update_callback_status(session, callback_payload, CallbackStatus.IN_PROGRESS)
+
+                ## TODO: Do the callback using httpx
+
+                update_callback_status(session, callback_payload, CallbackStatus.SUCCESS)
+                return
+
+            except sqlalchemy.exc.SQLAlchemyError as db_error:
+                logger.error(f"Database error (retry {retries + 1}/{max_retries}) for callback {task_id}: {db_error}")
+                if retries < max_retries:
+                    await anyio.sleep(retry_delay)
+                else:
+                    logger.error(f"Max retries exceeded for callback {task_id}")
+                    callback_payload = get_callback(session, task_id)
+                    if callback_payload:
+                        update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(db_error))
+
+            except anyio.get_cancelled_exc_class():
+                callback_payload = get_callback(session, task_id)
+                if callback_payload:
+                    update_callback_status(session, callback_payload, CallbackStatus.CANCELLED, "Callback cancelled")
+                    session.commit()
+                raise
+
+            except Exception as error:
+                error_message = f"{error}\n{traceback.format_exc()}"
+
+                logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for callback {task_id}: {error_message}")
+                if retries < max_retries:
+                    await anyio.sleep(retry_delay)
+                else:
+                    logger.error(f"Max retries exceeded for callback {task_id}")
+                    callback_payload = get_callback(session, task_id)
+                    if callback_payload:
+                        update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(error))
+
+            finally:
+                if retries > 0:
+                    logger.debug(f"Callback {task_id} retried {retries} times.")
 
             retries += 1
 
@@ -254,11 +361,18 @@ async def recover_tasks():
         logger.debug("Starting task recovery")
         tasks = session.exec(select(TaskPayload).where(TaskPayload.status.in_([TaskStatus.IN_QUEUE, TaskStatus.IN_PROGRESS]))).all()
         for task in tasks:
-            await send_stream.send(task.id)
-            logger.info("Recovered task %s", task.id)
+            await task_send_stream.send(task.task_id)
+            logger.info("Recovered task %s", task.task_id)
 
 
-async def worker():
+async def callback_worker():
+    async with anyio.create_task_group() as task_group:
+        async for task_id in callback_receive_stream:
+            with Session(engine) as session:
+                task_group.start_soon(process_callback, task_id, session)
+
+
+async def task_worker():
     """
     Background worker that continuously retrieves task IDs from the queue and processes them.
 
@@ -266,7 +380,7 @@ async def worker():
     task IDs from the `receive_stream` and starts a `process_task` coroutine for each ID.
     """
     async with anyio.create_task_group() as task_group:  # create a task group
-        async for task_id in receive_stream:
+        async for task_id in task_receive_stream:
             with Session(engine) as session:
                 task_group.start_soon(process_task, task_id, session)  # start the task in the task group.
 
@@ -283,7 +397,7 @@ def cleanup_database(session: Session, retention_hours: int = 10, target_status:
 
     for task in tasks_to_delete:
         session.delete(task)
-        logging.info(f"Deleted task {task.id}")
+        logging.info(f"Deleted task {task.task_id}")
 
     session.commit()
 
@@ -312,8 +426,8 @@ async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(g
     task = TaskPayload(tenant=task_create.tenant, data=task_create.data, callback=task_create.callback)
     session.add(task)
     session.commit()
-    task_id = task.id
-    await send_stream.send(task_id)
+    task_id = task.task_id
+    await task_send_stream.send(task_id)
     return {"message": f"Task {task_id} enqueued at {task.created_at}"}
 
 
@@ -352,8 +466,9 @@ async def lifespan(app: FastAPI):
     async with task_group:
         app.extra["task_group"] = task_group
         app.extra["process_task"] = process_task
+
         task_group.start_soon(recover_tasks)
-        task_group.start_soon(worker)
+        task_group.start_soon(task_worker)
 
         scheduler = AsyncIOScheduler()
         scheduler.add_job(run_cleanup, "cron", hour=3, args=[24, TaskStatus.SUCCESS])
