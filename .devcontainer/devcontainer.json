@@ -3,7 +3,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "postStartCommand": "uv sync",
+  "postStartCommand": "uv sync && uv run pre-commit install",
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/jungaretti/features/make:1": {},
@@ -19,14 +19,14 @@
         "tamasfe.even-better-toml",
         "njpwerner.autodocstring",
         "VisualStudioExptTeam.vscodeintellicode",
-        "GitHub.copilot",
         "charliermarsh.ruff",
         "eamodio.gitlens",
         "github.vscode-github-actions",
         "ms-python.mypy-type-checker",
         "mongodb.mongodb-vscode",
         "zaaack.markdown-editor",
-        "humao.rest-client"
+        "humao.rest-client",
+        "Google.geminicodeassist"
       ]
     }
   }
