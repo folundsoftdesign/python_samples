@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, timezone
-import time
 import uuid
-from apscheduler.executors.pool import ProcessPoolExecutor, ThreadPoolExecutor
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from sample.models.job_lock_beanie import JobLock
