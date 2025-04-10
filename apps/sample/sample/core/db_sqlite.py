@@ -2,7 +2,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from sample.core.settings import settings
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+engine = create_engine(str(settings.sqlalchemy_database_uri))
 
 
 # make sure all SQLModel models are imported (app.models) before initializing DB

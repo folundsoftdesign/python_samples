@@ -81,12 +81,12 @@ def get_tenant_id(authorization: str = Header(...)) -> str:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         return payload["tenant_id"]
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    except KeyError:
-        raise HTTPException(status_code=400, detail="tenant_id missing from token")
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=401, detail="Token expired") from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail="Invalid token") from e
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail="tenant_id missing from token") from e
 
 
 class TokenRequest(BaseModel):
@@ -192,7 +192,7 @@ async def upload_file(
 
     except Exception as e:
         logger.error(f"File upload failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}") from e
     finally:
         await file.close()
 
@@ -247,7 +247,7 @@ async def download_object(body: FilesDownloadBody, tenant_id: str = Depends(get_
         )
     except Exception as e:
         logger.error(f"Download failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}") from e
 
 
 class FilesDeleteBody(BaseModel):

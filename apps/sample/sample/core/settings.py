@@ -131,7 +131,7 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> MultiHostUrl | str:
+    def sqlalchemy_database_uri(self) -> MultiHostUrl | str:
         if self.DATABASE_TYPE == "sqlite":
             return f"sqlite:///{self.SQLALCHEMY_DATABASE_FILE}"
 
@@ -148,7 +148,7 @@ class Settings(BaseSettings):
     @property
     def mongo_dsn(self) -> str:
         # Setup authSource - defaults to mongo_db if mongo_auth_db not provided
-        authSource = f"&authSource={self.mongo_auth_db}" if self.mongo_auth_db else f"&authSource={self.mongo_db}"
+        auth_source = f"&authSource={self.mongo_auth_db}" if self.mongo_auth_db else f"&authSource={self.mongo_db}"
 
         if isinstance(self.mongo_host, list):
             hosts = ",".join(self.mongo_host)
@@ -158,7 +158,7 @@ class Settings(BaseSettings):
         if self.mongo_user is None or self.mongo_pass is None:
             return f"mongodb://{hosts}/{self.mongo_db}{self.mongo_config}"
 
-        return f"mongodb://{self.mongo_user}:{self.mongo_pass}@{hosts}{self.mongo_config}{authSource}"
+        return f"mongodb://{self.mongo_user}:{self.mongo_pass}@{hosts}{self.mongo_config}{auth_source}"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -188,7 +188,7 @@ class Settings(BaseSettings):
         )
 
     @model_validator(mode="before")
-    def check_database_settings(cls, values):
+    def check_database_settings(self, values):
         database_type = values.get("DATABASE_TYPE")
         if database_type == "postgresql":
             required_fields = ["POSTGRES_SERVER", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]

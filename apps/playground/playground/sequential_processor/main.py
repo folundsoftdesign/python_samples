@@ -60,7 +60,7 @@ CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
 
 
 # Exceptions
-class TaskNotFound(ValueError):
+class TaskNotFoundError(ValueError):
     """Exception raised when a task is not found."""
 
     pass
@@ -148,7 +148,7 @@ async def do_something(task_id: uuid.UUID, *, session: Session) -> dict:
     task_payload = get_task_from_db(session, task_id)
     if not task_payload:
         logger.error(f"Task {task_id} not found in do_something")
-        raise TaskNotFound(f"Task {task_id} not found")
+        raise TaskNotFoundError(f"Task {task_id} not found")
 
     logger.debug("Task %s data: %s", task_id, task_payload.data)
 
@@ -216,7 +216,7 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
                 update_task_status(session, task_payload, TaskStatus.SUCCESS, result=result)
                 return
 
-            except TaskNotFound as e:
+            except TaskNotFoundError as e:
                 logger.error(f"Task {task_id} not found: {e}. Not retrying.")
                 return
 

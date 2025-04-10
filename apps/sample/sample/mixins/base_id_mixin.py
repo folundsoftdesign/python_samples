@@ -12,7 +12,7 @@ class BaseIdMixin(BaseModel):
     id: str
 
     @model_validator(mode="before")
-    def convert_id(cls, values):
+    def convert_id(self, values):
         if "id" in values:
             values["id"] = str(values["id"])
             return values

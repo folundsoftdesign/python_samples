@@ -8,7 +8,7 @@ from .note_types import Note, NoteCreate, NoteUpdate
 from .notes_utils import PaginatedResponse, Pagination
 
 
-class InstanceNotFoundException(Exception):
+class InstanceNotFoundError(Exception):
     pass
 
 
@@ -21,7 +21,7 @@ async def create_note(note: NoteCreate) -> Note:
 async def get_note_by_id(id: str) -> Note:
     document = await NoteModel.get(id)
     if document is None:
-        raise InstanceNotFoundException(f"Note with id {id} not found")
+        raise InstanceNotFoundError(f"Note with id {id} not found")
     return Note(**document.model_dump())
 
 
@@ -47,7 +47,7 @@ async def get_notes_iter() -> AsyncIterator[Note]:
 async def update_note_by_id(id: str, note_update: NoteUpdate) -> None:
     document = await NoteModel.get(id)
     if document is None:
-        raise InstanceNotFoundException(f"Note with id {id} not found")
+        raise InstanceNotFoundError(f"Note with id {id} not found")
     updates = note_update.model_dump(exclude_none=True)
     for key, value in updates.items():
         setattr(document, key, value)

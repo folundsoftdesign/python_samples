@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from .note_types import Note, NoteCreate, NoteUpdate
 from .notes_service import (
-    InstanceNotFoundException,
+    InstanceNotFoundError,
     create_note,
     delete_note_by_id,
     get_note_by_id,
@@ -35,10 +35,10 @@ async def get_by_id(id: str) -> SuccessResponse[Note]:
     try:
         note = await get_note_by_id(id)
         return SuccessResponse(data=note)
-    except InstanceNotFoundException:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    except ValidationError:
-        raise HTTPException(status_code=400, detail="Validation error")
+    except InstanceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Instance not found") from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail="Validation error") from exc
 
 
 @router.get("")
@@ -51,15 +51,15 @@ async def route_get_notes(params: Params = Depends()) -> SuccessResponse[Note]:
 async def update_by_id(id: str, note: NoteUpdate) -> None:
     try:
         await update_note_by_id(id, note)
-    except InstanceNotFoundException:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    except ValidationError:
-        raise HTTPException(status_code=400, detail="Validation error")
+    except InstanceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Instance not found") from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail="Validation error") from exc
 
 
 @router.delete("/{id}", status_code=204)
 async def delete_by_id(id: str) -> None:
     try:
         await delete_note_by_id(id)
-    except ValidationError:
-        raise HTTPException(status_code=400, detail="Validation error")
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail="Validation error") from exc

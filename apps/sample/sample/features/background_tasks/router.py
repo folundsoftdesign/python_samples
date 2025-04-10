@@ -51,7 +51,7 @@ async def status_handler():
 
 
 @router.post("/request/{uid}", status_code=HTTPStatus.ACCEPTED)
-async def request_API(uid: UUID, background_tasks: BackgroundTasks):
+async def request_enqueue(uid: UUID, background_tasks: BackgroundTasks):
     new_task = Job(uid=uid)
     new_task.status = "in_queue"
     jobs[new_task.uid] = new_task
