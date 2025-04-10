@@ -26,7 +26,7 @@
         "mongodb.mongodb-vscode",
         "zaaack.markdown-editor",
         "humao.rest-client",
-        "Google.geminicodeassist"
+        "GitHub.copilot"
       ]
     }
   }

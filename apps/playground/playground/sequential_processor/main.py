@@ -295,6 +295,34 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
             retries += 1
 
 
+async def handle_callback_database_error(
+    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, max_retries: int, retry_delay: int
+) -> None:
+    logger.error(f"Database error (retry {retries + 1}/{max_retries}) for callback {task_id}: {db_error}")
+    if retries < max_retries:
+        await anyio.sleep(retry_delay)
+    else:
+        logger.error(f"Max retries exceeded for callback {task_id}")
+        callback_payload = get_callback(session, task_id)
+        if callback_payload:
+            update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(db_error))
+
+
+async def handle_callback_unexpected_error(
+    session: Session, task_id: uuid.UUID, error: Exception, retries: int, max_retries: int, retry_delay: int
+) -> None:
+    error_message = f"{error}\n{traceback.format_exc()}"
+
+    logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for callback {task_id}: {error_message}")
+    if retries < max_retries:
+        await anyio.sleep(retry_delay)
+    else:
+        logger.error(f"Max retries exceeded for callback {task_id}")
+        callback_payload = get_callback(session, task_id)
+        if callback_payload:
+            update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(error))
+
+
 async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, retry_delay=5):
     retries = 0
     while retries < max_retries:
@@ -309,20 +337,18 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
 
                 update_callback_status(session, callback_payload, CallbackStatus.IN_PROGRESS)
 
-                ## TODO: Do the callback using httpx
+                # TODO: Do the callback using httpx
+                # Example:
+                # async with httpx.AsyncClient() as client:
+                #     response = await client.post(callback_payload.callback, json=task_payload.result)
+                #     response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+                #     logger.debug(f"Callback {task_id} response: {response.status_code} - {response.text}")
 
                 update_callback_status(session, callback_payload, CallbackStatus.SUCCESS)
                 return
 
             except sqlalchemy.exc.SQLAlchemyError as db_error:
-                logger.error(f"Database error (retry {retries + 1}/{max_retries}) for callback {task_id}: {db_error}")
-                if retries < max_retries:
-                    await anyio.sleep(retry_delay)
-                else:
-                    logger.error(f"Max retries exceeded for callback {task_id}")
-                    callback_payload = get_callback(session, task_id)
-                    if callback_payload:
-                        update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(db_error))
+                await handle_callback_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
 
             except anyio.get_cancelled_exc_class():
                 callback_payload = get_callback(session, task_id)
@@ -332,16 +358,7 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
                 raise
 
             except Exception as error:
-                error_message = f"{error}\n{traceback.format_exc()}"
-
-                logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for callback {task_id}: {error_message}")
-                if retries < max_retries:
-                    await anyio.sleep(retry_delay)
-                else:
-                    logger.error(f"Max retries exceeded for callback {task_id}")
-                    callback_payload = get_callback(session, task_id)
-                    if callback_payload:
-                        update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(error))
+                await handle_callback_unexpected_error(session, task_id, error, retries, max_retries, retry_delay)
 
             finally:
                 if retries > 0:
