@@ -194,10 +194,12 @@ class Settings(BaseSettings):
             required_fields = ["POSTGRES_SERVER", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
             for field in required_fields:
                 if not values.get(field):
-                    raise ValueError(f"{field} must be set when DATABASE_TYPE is 'postgresql'")
+                    msg = f"{field} must be set when DATABASE_TYPE is 'postgresql'"
+                    raise ValueError(msg)
         elif database_type == "sqlite":
             if not values.get("SQLALCHEMY_DATABASE_FILE"):
-                raise ValueError("SQLALCHEMY_DATABASE_FILE must be set when DATABASE_TYPE is 'sqlite'")
+                msg = "SQLALCHEMY_DATABASE_FILE must be set when DATABASE_TYPE is 'sqlite'"
+                raise ValueError(msg)
         return values
 
 

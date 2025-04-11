@@ -34,29 +34,17 @@ class SuccessResponse(BaseModel, Generic[T]):
         return result
 
 
-class FormatEnum(StrEnum):
+class OutputFormat(StrEnum):
     json = "json"
     jsonl = "jsonl"
 
 
 class FormatParam(BaseModel):
-    format: FormatEnum = Field(FormatEnum.json, description="Output format")
+    format: OutputFormat = Field(OutputFormat.json, description="Output format")
 
 
-async def generate_response(output_format: FormatEnum, iterator: AsyncIterator[T]) -> tuple[AsyncIterator[str], str]:
-    if output_format == FormatEnum.json:
-
-        async def json_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:
-            yield '{ "success": true, "data": ['
-            items = [item.model_dump_json() async for item in iterator]
-            yield ",".join(items)
-            yield "]}"
-
-        generator = json_generator(iterator)
-        media_type = "application/json"
-        return generator, media_type
-
-    if output_format == FormatEnum.jsonl:
+async def generate_response(output_format: OutputFormat, iterator: AsyncIterator[T]) -> tuple[AsyncIterator[str], str]:
+    if output_format == OutputFormat.jsonl:
 
         async def jsonl_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:
             async for item in iterator:
@@ -66,4 +54,13 @@ async def generate_response(output_format: FormatEnum, iterator: AsyncIterator[T
         media_type = "application/x-ndjson"
         return generator, media_type
 
-    raise ValueError(f"Unsupported output format: {output_format}")
+    # We will always return a JSON response if the format is not jsonl
+    async def json_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:
+        yield '{ "success": true, "data": ['
+        items = [item.model_dump_json() async for item in iterator]
+        yield ",".join(items)
+        yield "]}"
+
+    generator = json_generator(iterator)
+    media_type = "application/json"
+    return generator, media_type

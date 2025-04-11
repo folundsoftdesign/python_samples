@@ -48,6 +48,9 @@ select = [
     "B",
     "UP",
     "ASYNC",
+    "C4",
+    "DTZ",
+    "EM",
 ]
 
 # Candicates "FBT", "ANN"

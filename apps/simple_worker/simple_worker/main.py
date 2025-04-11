@@ -202,8 +202,9 @@ async def do_something(task_id: uuid.UUID, *, session: Session) -> dict:
 
     task_payload = get_task_from_db(session, task_id)
     if not task_payload:
-        logger.error(f"Task {task_id} not found in do_something")
-        raise TaskNotFoundError(f"Task {task_id} not found")
+        msg = f"Task {task_id} not found"
+        logger.error(msg)
+        raise TaskNotFoundError(msg)
 
     logger.debug("Task %s data: %s", task_id, task_payload.data)
 
