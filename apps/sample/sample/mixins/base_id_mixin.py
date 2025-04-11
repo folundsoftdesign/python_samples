@@ -17,5 +17,7 @@ class BaseIdMixin(BaseModel):
             values["id"] = str(values["id"])
             return values
 
+        return None
+
     class Settings:
         projection = {"id": "$_id"}

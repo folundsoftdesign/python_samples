@@ -21,11 +21,11 @@ jobs: dict[UUID, Job] = {}
 
 async def process_gpu_task(task_id: int):
     try:
-        print(f"GPU task {task_id} started")
+        logger.info(f"GPU task {task_id} started")
         await anyio.sleep(5)  # Simulate GPU processing
-        print(f"GPU task {task_id} completed")
+        logger.info(f"GPU task {task_id} completed")
     except Exception as e:
-        print(f"Error processing GPU task {task_id}: {e}")
+        logger.error(f"Error processing GPU task {task_id}: {e}")
         # Add any exception handling logic here (e.g., logging)
     finally:
         # The lock is released when the 'async with' block exits, not explicitly in the finally block.

@@ -63,8 +63,6 @@ CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
 class TaskNotFoundError(ValueError):
     """Exception raised when a task is not found."""
 
-    pass
-
 
 router = APIRouter(prefix="/worker")
 
@@ -338,7 +336,7 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
 
                 update_callback_status(session, callback_payload, CallbackStatus.IN_PROGRESS)
 
-                # TODO: Do the callback using httpx
+                # TODO: Do the callback using httpx  # noqa: FIX002
                 # Example:
                 # async with httpx.AsyncClient() as client:
                 #     response = await client.post(callback_payload.callback, json=task_payload.result)
@@ -457,8 +455,7 @@ async def get_tasks(session: Annotated[Session, Depends(get_session)]):
     Returns:
         A list of TaskPayload objects.
     """
-    tasks = session.exec(select(TaskPayload)).all()
-    return tasks
+    return session.exec(select(TaskPayload)).all()
 
 
 @router.get("/{task_id}")

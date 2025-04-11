@@ -64,8 +64,10 @@ class LogLevelEnum(StrEnum):
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",")]
-    elif isinstance(v, list | str):
+
+    if isinstance(v, list | str):
         return v
+
     raise ValueError(v)
 
 
@@ -150,10 +152,7 @@ class Settings(BaseSettings):
         # Setup authSource - defaults to mongo_db if mongo_auth_db not provided
         auth_source = f"&authSource={self.mongo_auth_db}" if self.mongo_auth_db else f"&authSource={self.mongo_db}"
 
-        if isinstance(self.mongo_host, list):
-            hosts = ",".join(self.mongo_host)
-        else:
-            hosts = self.mongo_host
+        hosts = ",".join(self.mongo_host) if isinstance(self.mongo_host, list) else self.mongo_host
 
         if self.mongo_user is None or self.mongo_pass is None:
             return f"mongodb://{hosts}/{self.mongo_db}{self.mongo_config}"

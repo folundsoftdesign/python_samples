@@ -51,9 +51,18 @@ select = [
     "C4",
     "DTZ",
     "EM",
+    "EXE",
+    "FIX",
+    "INT",
+    "ISC",
+    "PIE",
+    "T20",
+    "PT",
+    "RET",
+    "SLF",
+    "SIM",
 ]
 
-# Candicates "FBT", "ANN"
 
 per-file-ignores = { "**/tests/*" = ["S101"] }
 ignore = ["E501", "B008"]
