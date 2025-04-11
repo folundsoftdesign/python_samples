@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -35,7 +35,7 @@ async def health_job(job_id=None):
 
     lock_ttl = 10  # 10 seconds lock
 
-    expire_at = datetime.now(timezone.utc) + timedelta(seconds=lock_ttl)
+    expire_at = datetime.now(UTC) + timedelta(seconds=lock_ttl)
 
     try:
         lock = JobLock(job_id=job_id, expire_at=expire_at)

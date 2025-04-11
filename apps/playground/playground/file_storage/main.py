@@ -2,9 +2,9 @@ import hashlib
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
-from typing import Annotated, Optional
+from typing import Annotated
 
 import jwt
 from beanie import Document, PydanticObjectId, init_beanie
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Utilities
 def current_utc_timestamp():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class FileMetadata(Document):
@@ -42,9 +42,9 @@ class FileMetadata(Document):
     filename: str
     last_modified: datetime
     gridfs_id: PydanticObjectId
-    file_hash: Optional[str] = None
+    file_hash: str | None = None
     content_type: str
-    file_size: Optional[int] = None
+    file_size: int | None = None
     tenant_id: str
 
     class Config:
@@ -111,7 +111,7 @@ async def generate_token(request: TokenRequest = Depends(), admin_key: str = Dep
 
 
 class FilesListBody(BaseModel):
-    bucket_name: Optional[Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]] = None
+    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")] | None = None
 
 
 @app.post("/files/list")
@@ -129,7 +129,7 @@ async def list_files(body: FilesListBody, tenant_id: str = Depends(get_tenant_id
 async def upload_file(
     file: Annotated[UploadFile, File(description="The file to upload")],
     bucket_name: Annotated[str, Form()],
-    file_name: Annotated[Optional[str], Form()] = None,
+    file_name: Annotated[str | None, Form()] = None,
     tenant_id: str = Depends(get_tenant_id),
 ):
     filename = file_name if file_name is not None else file.filename
@@ -200,7 +200,7 @@ async def upload_file(
 class FilesDownloadBody(BaseModel):
     bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
     filename: Annotated[str, Body(..., min_length=1, max_length=255)]
-    if_none_match: Optional[str] = None
+    if_none_match: str | None = None
 
 
 @app.post("/files/download")
@@ -278,7 +278,7 @@ async def delete_object(body: FilesDeleteBody, tenant_id: str = Depends(get_tena
 
 class BucketDeleteBody(BaseModel):
     bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
-    force: Optional[bool] = False
+    force: bool | None = False
 
 
 @app.post("/buckets/delete")

@@ -10,7 +10,7 @@ DOCKER_IMAGE_NAME=${3:-$APPLICATION}
 PYTHON_ENV=${PYTHON_ENV:=development}
 BRANCH_NAME=${BRANCH_NAME:=development}
 LOCAL_REPO=${LOCAL_REPO:=dockerrepo.softdesign.dk:5000}
-PYTHON_VERSION=${PYTHON_VERSION:=3.12}
+PYTHON_VERSION=${PYTHON_VERSION:=3.13}
 # --
 
 # Identify the hostname

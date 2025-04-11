@@ -1,4 +1,4 @@
-export PYTHON_VERSION=3.12.9
+export PYTHON_VERSION=3.13.3
 export LOCAL_REPO = dockerrepo.softdesign.dk:5000
 
 # Install python dependencies
@@ -19,6 +19,7 @@ pre_commit:
 # Update dependencies
 update:
 	uv lock --upgrade
+	uv sync
 
 # Run pytest
 test:
@@ -37,11 +38,12 @@ lint:
 run-sample:
 	cd apps/sample && uv run fastapi dev sample/server.py
 
-run-sequential-processor:
-	uv run --directory=apps/playground fastapi dev playground/sequential_processor/main.py
-
 run-file-storage:
 	uv run --directory=apps/playground fastapi dev playground/file_storage/main.py
+
+run-simple-worker:
+	uv run --directory=apps/simple_worker fastapi dev simple_worker/main.py
+
 
 # MONGO
 # Connection string inside dev container: mongodb://root:secret@172.17.0.1:30001/?ssl=false&readPreference=primary

@@ -2,7 +2,7 @@
 # BUILDER
 # This is where the app is built and dependencies are installed
 #
-ARG PYTHON_VERSION=3.12.9
+ARG PYTHON_VERSION=3.13.3
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS build
 ARG APP="sample"

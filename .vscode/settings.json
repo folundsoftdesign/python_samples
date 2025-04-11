@@ -13,6 +13,9 @@
   // Python settings
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit"
+    },
     "editor.formatOnSave": true
   },
   "python.analysis.autoSearchPaths": true,
@@ -36,6 +39,5 @@
   // Mypy settings
   "mypy-type-checker.interpreter": [
     "${workspaceFolder}/.venv/bin/python"
-  ],
-  "makefile.configureOnOpen": false
+  ]
 }

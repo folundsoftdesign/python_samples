@@ -3,7 +3,7 @@ name = "python_samples-monorepo"
 version = "0.1.0"
 description = "A Monorepo for all my Python projects"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = []
 
 [tool.uv.sources]
@@ -11,6 +11,7 @@ utilities = { workspace = true }
 sample = { workspace = true }
 sample_core = { workspace = true }
 playground = { workspace = true }
+simple_worker = { workspace = true }
 
 
 [tool.uv.workspace]
@@ -34,5 +35,6 @@ dev-dependencies = [
     "sample",
     "sample_core",
     "playground",
+    "simple_worker",
 ]
 package = false

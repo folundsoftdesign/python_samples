@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator
 from enum import StrEnum
-from typing import Any, AsyncIterator, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field, model_serializer
 
@@ -15,13 +16,13 @@ class Pagination(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     pagination: Pagination
-    data: List[T]
+    data: list[T]
 
 
 class SuccessResponse(BaseModel, Generic[T]):
     success: bool = True
-    data: Optional[T | List[T]] = None
-    pagination: Optional[Pagination] = None
+    data: T | list[T] | None = None
+    pagination: Pagination | None = None
 
     # Using the model_serializer to transform the response
     # Remove the pagination property if it is None from the response

@@ -35,14 +35,13 @@ import uuid
 from contextlib import asynccontextmanager
 from enum import StrEnum
 from pathlib import Path
-from typing import Optional, Tuple
 
 import anyio
 import sqlalchemy
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from sqlmodel import JSON, Column, Field, Index, Session, SQLModel, create_engine, select
 
 # Setup logging
@@ -52,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 # Utilities
 def current_utc_timestamp():
-    return datetime.datetime.now(datetime.timezone.utc)
+    return datetime.datetime.now(datetime.UTC)
 
 
 # Constants
@@ -69,7 +68,7 @@ class TaskNotFoundError(ValueError):
 router = APIRouter(prefix="/worker")
 
 # Task handling streams, locks and semaphore
-task_send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
+task_send_receive_streams: tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
     anyio.create_memory_object_stream()
 )
 task_send_stream, task_receive_stream = task_send_receive_streams
@@ -77,14 +76,14 @@ task_lock = anyio.Lock()
 task_semaphore = anyio.Semaphore(1)  # Limit the number of concurrent tasks to 1
 
 # Callback handling streams, locks and semaphore
-callback_send_receive_streams: Tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
+callback_send_receive_streams: tuple[MemoryObjectSendStream[uuid.UUID], MemoryObjectReceiveStream[uuid.UUID]] = (
     anyio.create_memory_object_stream()
 )
 callback_send_stream, callback_receive_stream = callback_send_receive_streams
 callback_lock = anyio.Lock()
 callback_semaphore = anyio.Semaphore(1)  # Limit the number of concurrent callbacks to 1
 
-sqlite_file = Path(__file__).parent / "../../data" / "sequential_processor.db"
+sqlite_file = Path(__file__).parent / "../data" / "database.db"
 sqlite_url = f"sqlite:///{sqlite_file}"
 
 engine = create_engine(
@@ -113,9 +112,9 @@ class CallbackStatus(StrEnum):
 
 
 class TaskCreate(BaseModel):
-    tenant: Optional[str] = Field(default=None, description="An optional tenand")
+    tenant: str | None = Field(default=None, description="An optional tenand")
     data: dict
-    callback: Optional[HttpUrl] = Field(default=None, description="The callback URL or identifier for the task.")
+    callback: str | None = Field(default=None, description="The callback URL or identifier for the task.")
 
 
 class TaskPayload(SQLModel, table=True):
@@ -124,26 +123,26 @@ class TaskPayload(SQLModel, table=True):
     data: dict = Field(sa_column=Column(JSON))
     result: dict = Field(default=None, sa_column=Column(JSON))
 
-    callback: Optional[HttpUrl] = Field(default=None)
+    callback: str | None = Field(default=None)
 
     status: TaskStatus = Field(default=TaskStatus.IN_QUEUE, index=True)
     created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
     completed_at: datetime.datetime = Field(default=None, nullable=True)
     error_message: str = Field(default=None, nullable=True)
 
-    __table_args__ = (Index("status_index", "status"),)
+    __table_args__ = (Index("task_status", "status"),)
 
 
 class CallbackPayload(SQLModel, table=True):
     task_id: uuid.UUID = Field(primary_key=True)
-    callback: Optional[HttpUrl]
+    callback: str | None
 
     status: CallbackStatus = Field(default=CallbackStatus.IN_QUEUE, index=True)
     created_at: datetime.datetime = Field(default_factory=current_utc_timestamp)
     completed_at: datetime.datetime = Field(default=None, nullable=True)
     error_message: str = Field(default=None, nullable=True)
 
-    __table_args__ = (Index("status_index", "status"),)
+    __table_args__ = (Index("calback_status", "status"),)
 
 
 SQLModel.metadata.create_all(engine)
@@ -406,7 +405,7 @@ def cleanup_database(session: Session, retention_hours: int = 10, target_status:
     """
     Cleans up the database by deleting SUCCESS tasks older than retention_hours.
     """
-    cutoff_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=retention_hours)
+    cutoff_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=retention_hours)
 
     tasks_to_delete = session.exec(
         select(TaskPayload).where(TaskPayload.status == target_status, TaskPayload.created_at < cutoff_time)

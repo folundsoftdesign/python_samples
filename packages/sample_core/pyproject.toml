@@ -3,7 +3,7 @@ name = "sample_core"
 version = "0.1.0"
 description = "Core features for the sample app"
 readme = "README.md"
-requires-python = ">=3.12.0"
+requires-python = ">=3.13"
 dependencies = ["pydantic>=2.10.6"]
 
 [dependency-groups]

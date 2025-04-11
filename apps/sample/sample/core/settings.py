@@ -26,7 +26,7 @@ Example usage:
 
 import os
 from enum import StrEnum
-from typing import Annotated, Any, List, Literal, Tuple, Type, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import AnyUrl, BeforeValidator, EmailStr, computed_field, model_validator
 from pydantic_core import MultiHostUrl
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     log_json: bool = False
 
     # MongoDB settings for Beanie
-    mongo_host: Union[str, List[str]] = "localhost"
+    mongo_host: str | list[str] = "localhost"
     mongo_user: str | None = None
     mongo_pass: str | None = None
     mongo_db: str = "sample"
@@ -173,12 +173,12 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             init_settings,
             env_settings,

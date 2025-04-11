@@ -1,6 +1,5 @@
 import time
 from http import HTTPStatus
-from typing import Dict
 from uuid import UUID
 
 import anyio
@@ -17,7 +16,7 @@ class Job(BaseModel):
 
 router = APIRouter(prefix="/background_tasks")
 
-jobs: Dict[UUID, Job] = {}
+jobs: dict[UUID, Job] = {}
 
 
 async def process_gpu_task(task_id: int):

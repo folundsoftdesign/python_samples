@@ -1,13 +1,13 @@
 # test_worker_sqllite.py
 
 import uuid
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, create_engine
 
-from .main import (
+from ..simple_worker.main import (
     TaskPayload,
     TaskStatus,
     app,

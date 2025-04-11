@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import Field
@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 
 
 def current_utc_timestamp():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class BackgroundJob(SQLModel):

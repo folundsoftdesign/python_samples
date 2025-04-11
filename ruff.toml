@@ -31,14 +31,78 @@ exclude = [
 
 line-length = 132
 indent-width = 4
-target-version = "py312"
+target-version = "py313"
 
 [lint]
-select = ["E", "F", "I", "W", "C", "N", "Q", "B"]
+# S (bandit): Security checks.
+# E (pycodestyle): Errors.
+# F (pyflakes): Pyflakes checks.
+# I (isort): Isort checks.
+# W (pycodestyle): Warnings.
+# C (pep8-naming): Naming conventions.
+# N (pep8-naming): Naming conventions.
+# Q (flake8-quotes): Quotes.
+# B (flake8-bugbear): Bugbear checks.
+# UP (pyupgrade): Upgrade checks.
+# ASYNC (flake8-async): Async checks.
+
+
+select = ["S", "E", "F", "I", "W", "C", "N", "Q", "B", "UP", "ASYNC"]
+
+# select = [
+#     "A",  # flake8-builtins
+#     "ARG", # flake8-unused-arguments
+#     "ASYNC", # flake8-async
+#     "B",  # flake8-bugbear
+#     "BLE", # flake8-blind-except
+#     "C4", # flake8-comprehensions
+#     "C90", # mccabe
+#     "COM", # flake8-commas
+#     "D",  # pydocstyle
+#     "DJ", # flake8-django
+#     "DTZ", # flake8-datetimez
+#     "E",  # pycodestyle errors
+#     "EM", # flake8-errmsg
+#     "EXE", # flake8-executable
+#     "F",  # pyflakes
+#     "FA", # flake8-future-annotations
+#     "FBT", # flake8-boolean-trap
+#     "ICN", # flake8-implicit-str-concat
+#     "INP", # flake8-no-pep420
+#     "ISC", # flake8-implicit-str-concat
+#     "I",  # isort
+#     "LOG", # flake8-logging-format
+#     "N",  # pep8-naming
+#     "PGH", # pygrep-hooks
+#     "PIE", # flake8-pie
+#     "PLC", # pylint convention
+#     "PLE", # pylint error
+#     "PLR", # pylint refactor
+#     "PLS", # pylint style
+#     "PT", # flake8-pytest-style
+#     "PTH", # flake8-use-pathlib
+#     "PYI", # flake8-pyi
+#     "Q", # flake8-quotes
+#     "RSE", # flake8-raise
+#     "RET", # flake8-return
+#     "RUF", # ruff-specific
+#     "S", # bandit
+#     "SIM", # flake8-simplify
+#     "T10", # flake8-debugger
+#     "T20", # flake8-print
+#     "TD", # flake8-todos
+#     "TRY", # flake8-try-except
+#     "UP", # pyupgrade
+#     "W",  # pycodestyle warnings
+#     "YTT", # flake8-2020
+# ]
+
+per-file-ignores = { "**/tests/*" = ["S101"] }
 ignore = ["E501", "B008"]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
 
 [format]
 quote-style = "double"

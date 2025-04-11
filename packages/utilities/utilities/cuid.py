@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 from cuid2 import cuid_wrapper
 

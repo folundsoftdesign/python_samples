@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from beanie import Insert, Replace, Save, SaveChanges, Update, before_event
 from pydantic import BaseModel, Field
 
 
 def get_time_utc():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TimestampMixin(BaseModel):
