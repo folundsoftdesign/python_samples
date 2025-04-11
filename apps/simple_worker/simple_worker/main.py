@@ -35,6 +35,7 @@ import uuid
 from contextlib import asynccontextmanager
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 
 import anyio
 import sqlalchemy
@@ -429,7 +430,7 @@ async def run_cleanup(retention_hours: int = 24, target_status: TaskStatus = Tas
 
 
 @router.post("")
-async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(get_session)):
+async def enqueue_gpu_task(task_create: TaskCreate, session: Annotated[Session, Depends(get_session)]):
     """
     Enqueues a GPU task by adding it to the database and sending its ID to the worker queue.
 
@@ -448,7 +449,7 @@ async def enqueue_gpu_task(task_create: TaskCreate, session: Session = Depends(g
 
 
 @router.get("")
-async def get_tasks(session: Session = Depends(get_session)):
+async def get_tasks(session: Annotated[Session, Depends(get_session)]):
     """
     Retrieves all tasks from the database.
 
@@ -460,7 +461,7 @@ async def get_tasks(session: Session = Depends(get_session)):
 
 
 @router.get("/{task_id}")
-async def get_task(task_id: uuid.UUID, session: Session = Depends(get_session)):
+async def get_task(task_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     """
     Retrieves a specific task from the database by its ID.
 

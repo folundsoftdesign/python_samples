@@ -5,15 +5,14 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, create_engine
-
-from ..simple_worker.main import (
+from simple_worker.main import (
     TaskPayload,
     TaskStatus,
     app,
     get_task_from_db,
     update_task_status,
 )
+from sqlmodel import Session, create_engine
 
 engine = create_engine("sqlite:///:memory:")
 TaskPayload.metadata.create_all(engine)

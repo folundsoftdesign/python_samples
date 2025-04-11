@@ -18,10 +18,10 @@ async def create_note(note: NoteCreate) -> Note:
     return Note(**document.model_dump())
 
 
-async def get_note_by_id(id: str) -> Note:
-    document = await NoteModel.get(id)
+async def get_note_by_id(note_id: str) -> Note:
+    document = await NoteModel.get(note_id)
     if document is None:
-        raise InstanceNotFoundError(f"Note with id {id} not found")
+        raise InstanceNotFoundError(f"Note with id {note_id} not found")
     return Note(**document.model_dump())
 
 
@@ -44,17 +44,17 @@ async def get_notes_iter() -> AsyncIterator[Note]:
         yield Note(**document.model_dump())
 
 
-async def update_note_by_id(id: str, note_update: NoteUpdate) -> None:
-    document = await NoteModel.get(id)
+async def update_note_by_id(note_id: str, note_update: NoteUpdate) -> None:
+    document = await NoteModel.get(note_id)
     if document is None:
-        raise InstanceNotFoundError(f"Note with id {id} not found")
+        raise InstanceNotFoundError(f"Note with id {note_id} not found")
     updates = note_update.model_dump(exclude_none=True)
     for key, value in updates.items():
         setattr(document, key, value)
     await document.save()
 
 
-async def delete_note_by_id(id: str) -> None:
-    document = await NoteModel.get(id)
+async def delete_note_by_id(note_id: str) -> None:
+    document = await NoteModel.get(note_id)
     if document is not None:
         await document.delete()

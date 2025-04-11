@@ -20,6 +20,10 @@ pre_commit:
 update:
 	uv lock --upgrade
 	uv sync
+	rm -rf ./.cache
+	mkdir -p ./.cache
+	${MAKE} lint
+
 
 # Run pytest
 test:

@@ -43,8 +43,8 @@ class FormatParam(BaseModel):
     format: FormatEnum = Field(FormatEnum.json, description="Output format")
 
 
-async def generate_response(format: FormatEnum, iterator: AsyncIterator[T]) -> tuple[AsyncIterator[str], str]:
-    if format == FormatEnum.json:
+async def generate_response(output_format: FormatEnum, iterator: AsyncIterator[T]) -> tuple[AsyncIterator[str], str]:
+    if output_format == FormatEnum.json:
 
         async def json_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:
             yield '{ "success": true, "data": ['
@@ -56,7 +56,7 @@ async def generate_response(format: FormatEnum, iterator: AsyncIterator[T]) -> t
         media_type = "application/json"
         return generator, media_type
 
-    if format == FormatEnum.jsonl:
+    if output_format == FormatEnum.jsonl:
 
         async def jsonl_generator(iterator: AsyncIterator[T]) -> AsyncIterator[str]:
             async for item in iterator:
@@ -66,4 +66,4 @@ async def generate_response(format: FormatEnum, iterator: AsyncIterator[T]) -> t
         media_type = "application/x-ndjson"
         return generator, media_type
 
-    raise ValueError(f"Unsupported format: {format}")
+    raise ValueError(f"Unsupported output format: {output_format}")

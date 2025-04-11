@@ -99,7 +99,7 @@ def verify_admin_key(admin_key: str = Header(...)):
 
 
 @app.get("/generate_token")
-async def generate_token(request: TokenRequest = Depends(), admin_key: str = Depends(verify_admin_key)) -> str:
+async def generate_token(request: Annotated[TokenRequest, Depends()], admin_key: Annotated[str, Depends(verify_admin_key)]) -> str:
     tenant_id = request.tenant_id
     now = current_utc_timestamp().timestamp()
 
@@ -115,7 +115,7 @@ class FilesListBody(BaseModel):
 
 
 @app.post("/files/list")
-async def list_files(body: FilesListBody, tenant_id: str = Depends(get_tenant_id)):
+async def list_files(body: FilesListBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
     logger.info("Listing files in bucket: %s", bucket_name)
 
@@ -127,10 +127,10 @@ async def list_files(body: FilesListBody, tenant_id: str = Depends(get_tenant_id
 
 @app.post("/files/upload")
 async def upload_file(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
     file: Annotated[UploadFile, File(description="The file to upload")],
     bucket_name: Annotated[str, Form()],
     file_name: Annotated[str | None, Form()] = None,
-    tenant_id: str = Depends(get_tenant_id),
 ):
     filename = file_name if file_name is not None else file.filename
 
@@ -204,7 +204,7 @@ class FilesDownloadBody(BaseModel):
 
 
 @app.post("/files/download")
-async def download_object(body: FilesDownloadBody, tenant_id: str = Depends(get_tenant_id)):
+async def download_object(body: FilesDownloadBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
     filename = body.filename
     if_none_match = body.if_none_match
@@ -256,7 +256,7 @@ class FilesDeleteBody(BaseModel):
 
 
 @app.post("/files/delete")
-async def delete_object(body: FilesDeleteBody, tenant_id: str = Depends(get_tenant_id)):
+async def delete_object(body: FilesDeleteBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
     filename = body.filename
 
@@ -282,7 +282,7 @@ class BucketDeleteBody(BaseModel):
 
 
 @app.post("/buckets/delete")
-async def delete_bucket(body: BucketDeleteBody, tenant_id: str = Depends(get_tenant_id)):
+async def delete_bucket(body: BucketDeleteBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
     force = body.force
 
@@ -304,6 +304,6 @@ async def delete_bucket(body: BucketDeleteBody, tenant_id: str = Depends(get_ten
 
 
 @app.post("/buckets/list")
-async def list_buckets(tenant_id: str = Depends(get_tenant_id)):
+async def list_buckets(tenant_id: Annotated[str, Depends(get_tenant_id)]):
     logger.info("Listing buckets")
     return await FileMetadata.distinct("bucket_name", FileMetadata.tenant_id == tenant_id)
