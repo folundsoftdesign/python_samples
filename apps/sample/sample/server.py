@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     RunVar[CapacityLimiter]("_default_thread_limiter").set(CapacityLimiter(1))
 
     database = await initialize_database(__beanie_models__)
-    scheduler = setup_scheduler(database=database)
+    scheduler = setup_scheduler()
 
     app.state.database = database
     app.state.scheduler = scheduler

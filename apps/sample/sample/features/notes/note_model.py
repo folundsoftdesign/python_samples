@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import pymongo
 from beanie import Document
 
@@ -9,4 +11,4 @@ from .note_types import NoteBase
 class NoteModel(TimestampMixin, NoteBase, Document):
     class Settings:
         name = "notes"
-        indexes = [["title", pymongo.TEXT]]
+        indexes: ClassVar[list[list[str]]] = [["title", pymongo.TEXT]]

@@ -4,12 +4,12 @@ from .scheduler import setup_scheduler, start_scheduler, stop_scheduler
 from .settings import settings
 
 __all__ = [
-    "logger",
-    "configure_logger",
-    "settings",
-    "initialize_database",
     "close_database",
+    "configure_logger",
     "get_database",
+    "initialize_database",
+    "logger",
+    "settings",
     "setup_scheduler",
     "start_scheduler",
     "stop_scheduler",

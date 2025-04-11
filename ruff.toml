@@ -61,10 +61,21 @@ select = [
     "RET",
     "SLF",
     "SIM",
+    "TID",
+    "ARG",
+    "PTH",
+    "FLY",
+    "NPY",
+    "PERF",
+    "PL",
+    "FURB",
+    "RUF",
+    "TRY",
+
 ]
 
 
-per-file-ignores = { "**/tests/*" = ["S101"] }
+per-file-ignores = { "**/tests/*" = ["S101", "PLR2004"] }
 ignore = ["E501", "B008"]
 fixable = ["ALL"]
 unfixable = []

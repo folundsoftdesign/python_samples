@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import jwt
 from beanie import Document, PydanticObjectId, init_beanie
@@ -15,7 +15,7 @@ from pydantic import BaseModel, StringConstraints
 from starlette import status
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://root:secret@172.17.0.1:30001")
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 1024 * 1024 * 1024))  # default 1GB
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", str(1024 * 1024 * 1024)))  # default 1GB
 JWT_SECRET = os.getenv("JWT_SECRET", "very_secret_key")
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin_secret_key")
 
@@ -50,7 +50,7 @@ class FileMetadata(Document):
     class Config:
         collection = "file_metadata"
         arbitrary_types_allowed = True
-        indexes = [[("tenant_id", 1), ("bucket_name", 1), ("filename", 1)]]
+        indexes: ClassVar[list[list[tuple[str, int]]]] = [[("tenant_id", 1), ("bucket_name", 1), ("filename", 1)]]
 
 
 def calculate_hash(data: bytes) -> str:
@@ -99,7 +99,7 @@ def verify_admin_key(admin_key: str = Header(...)):
 
 
 @app.get("/generate_token")
-async def generate_token(request: Annotated[TokenRequest, Depends()], admin_key: Annotated[str, Depends(verify_admin_key)]) -> str:
+async def generate_token(request: Annotated[TokenRequest, Depends()], _admin_key: Annotated[str, Depends(verify_admin_key)]) -> str:
     tenant_id = request.tenant_id
     now = current_utc_timestamp().timestamp()
 
@@ -191,8 +191,8 @@ async def upload_file(
         return Response(status_code=status.HTTP_201_CREATED, headers={"ETag": file_hash.hexdigest()})
 
     except Exception as e:
-        logger.error(f"File upload failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}") from e
+        logger.error(f"File upload failed: {e!s} - {filename} in {bucket_name}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"File upload failed: {e!s}") from e
     finally:
         await file.close()
 
@@ -222,12 +222,13 @@ async def download_object(body: FilesDownloadBody, tenant_id: Annotated[str, Dep
         logger.info(f"Download prevented: File not modified - {filename} in {bucket_name}")
         return Response(status_code=status.HTTP_304_NOT_MODIFIED)
 
+    gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
+    gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id)
+    if not gridfs_file:
+        logger.error(f"Download failed: GridFS file not found - {filename} in {bucket_name}")
+        raise HTTPException(status_code=500, detail="GridFS file not found")
+
     try:
-        gridfs: AsyncIOMotorGridFSBucket = app.state.gridfs
-        gridfs_file = await gridfs.open_download_stream(file_metadata.gridfs_id)
-        if not gridfs_file:
-            logger.error(f"Download failed: GridFS file not found - {filename} in {bucket_name}")
-            raise HTTPException(status_code=500, detail="GridFS file not found")
 
         async def generate_chunks():
             chunk_size = 1024 * 1024  # 1MB chunks
@@ -245,9 +246,10 @@ async def download_object(body: FilesDownloadBody, tenant_id: Annotated[str, Dep
                 "Content-Length": str(gridfs_file.length),
             },
         )
+
     except Exception as e:
-        logger.error(f"Download failed: {str(e)} - {filename} in {bucket_name}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}") from e
+        logger.error(f"Download failed: {e!s} - {filename} in {bucket_name}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Download failed: {e!s}") from e
 
 
 class FilesDeleteBody(BaseModel):

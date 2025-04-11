@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from pydantic import BaseModel, model_validator
 
 
@@ -20,4 +22,4 @@ class BaseIdMixin(BaseModel):
         return None
 
     class Settings:
-        projection = {"id": "$_id"}
+        projection: ClassVar[dict[str, str]] = {"id": "$_id"}

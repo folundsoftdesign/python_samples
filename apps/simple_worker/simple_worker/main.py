@@ -33,6 +33,7 @@ import logging
 import traceback
 import uuid
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -57,6 +58,13 @@ def current_utc_timestamp():
 
 # Constants
 CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
+
+
+# Dataclasses
+@dataclass
+class RetryConfig:
+    max_retries: int = 3
+    retry_delay: int = 5
 
 
 # Exceptions
@@ -225,8 +233,11 @@ async def do_something(task_id: uuid.UUID, *, session: Session) -> dict:
 
 
 async def handle_database_error(
-    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, max_retries: int, retry_delay: int
+    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, retry_config: RetryConfig = RetryConfig()
 ) -> None:
+    max_retries = retry_config.max_retries
+    retry_delay = retry_config.retry_delay
+
     logger.error(f"Database error (retry {retries + 1}/{max_retries}) for task {task_id}: {db_error}")
     if retries < max_retries:
         await anyio.sleep(retry_delay)
@@ -238,8 +249,11 @@ async def handle_database_error(
 
 
 async def handle_unexpected_error(
-    session: Session, task_id: uuid.UUID, error: Exception, retries: int, max_retries: int, retry_delay: int
+    session: Session, task_id: uuid.UUID, error: Exception, retries: int, retry_config: RetryConfig = RetryConfig()
 ) -> None:
+    max_retries = retry_config.max_retries
+    retry_delay = retry_config.retry_delay
+
     error_message = f"{error}\n{traceback.format_exc()}"
 
     logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for task {task_id}: {error_message}")
@@ -252,7 +266,9 @@ async def handle_unexpected_error(
             update_task_status(session, task_payload, TaskStatus.FAILED, str(error))
 
 
-async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retry_delay=5):
+async def process_task(task_id: uuid.UUID, session: Session, retry_config: RetryConfig = RetryConfig()):
+    max_retries = retry_config.max_retries
+
     retries = 0
     while retries < max_retries:
         async with task_semaphore:
@@ -268,14 +284,15 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
                 result = await do_something(task_id, session=session)
 
                 update_task_status(session, task_payload, TaskStatus.SUCCESS, result=result)
-                return
 
-            except TaskNotFoundError as e:
-                logger.error(f"Task {task_id} not found: {e}. Not retrying.")
+                return  # noqa: TRY300
+
+            except TaskNotFoundError:
+                logger.exception(f"Task {task_id} not found. Not retrying.")
                 return
 
             except sqlalchemy.exc.SQLAlchemyError as db_error:
-                await handle_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
+                await handle_database_error(session, task_id, db_error, retries, retry_config)
 
             except anyio.get_cancelled_exc_class():
                 task_payload = get_task_from_db(session, task_id)
@@ -285,7 +302,7 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
                 raise
 
             except Exception as e:
-                await handle_unexpected_error(session, task_id, e, retries, max_retries, retry_delay)
+                await handle_unexpected_error(session, task_id, e, retries, retry_config)
 
             finally:
                 if retries > 0:
@@ -295,8 +312,11 @@ async def process_task(task_id: uuid.UUID, session: Session, max_retries=3, retr
 
 
 async def handle_callback_database_error(
-    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, max_retries: int, retry_delay: int
+    session: Session, task_id: uuid.UUID, db_error: Exception, retries: int, retry_config: RetryConfig = RetryConfig()
 ) -> None:
+    max_retries = retry_config.max_retries
+    retry_delay = retry_config.retry_delay
+
     logger.error(f"Database error (retry {retries + 1}/{max_retries}) for callback {task_id}: {db_error}")
     if retries < max_retries:
         await anyio.sleep(retry_delay)
@@ -308,8 +328,11 @@ async def handle_callback_database_error(
 
 
 async def handle_callback_unexpected_error(
-    session: Session, task_id: uuid.UUID, error: Exception, retries: int, max_retries: int, retry_delay: int
+    session: Session, task_id: uuid.UUID, error: Exception, retries: int, retry_config: RetryConfig = RetryConfig()
 ) -> None:
+    max_retries = retry_config.max_retries
+    retry_delay = retry_config.retry_delay
+
     error_message = f"{error}\n{traceback.format_exc()}"
 
     logger.error(f"Unexpected error (retry {retries + 1}/{max_retries}) for callback {task_id}: {error_message}")
@@ -322,7 +345,9 @@ async def handle_callback_unexpected_error(
             update_callback_status(session, callback_payload, CallbackStatus.FAILED, str(error))
 
 
-async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, retry_delay=5):
+async def process_callback(task_id: uuid.UUID, session: Session, retry_config: RetryConfig = RetryConfig()):
+    max_retries = retry_config.max_retries
+
     retries = 0
     while retries < max_retries:
         async with callback_semaphore:
@@ -336,7 +361,7 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
 
                 update_callback_status(session, callback_payload, CallbackStatus.IN_PROGRESS)
 
-                # TODO: Do the callback using httpx  # noqa: FIX002
+                # TODO: Implement the callback using httpx.  # noqa: FIX002
                 # Example:
                 # async with httpx.AsyncClient() as client:
                 #     response = await client.post(callback_payload.callback, json=task_payload.result)
@@ -344,10 +369,11 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
                 #     logger.debug(f"Callback {task_id} response: {response.status_code} - {response.text}")
 
                 update_callback_status(session, callback_payload, CallbackStatus.SUCCESS)
-                return
+
+                return  # noqa: TRY300
 
             except sqlalchemy.exc.SQLAlchemyError as db_error:
-                await handle_callback_database_error(session, task_id, db_error, retries, max_retries, retry_delay)
+                await handle_callback_database_error(session, task_id, db_error, retries, retry_config)
 
             except anyio.get_cancelled_exc_class():
                 callback_payload = get_callback(session, task_id)
@@ -357,7 +383,7 @@ async def process_callback(task_id: uuid.UUID, session: Session, max_retries=3, 
                 raise
 
             except Exception as error:
-                await handle_callback_unexpected_error(session, task_id, error, retries, max_retries, retry_delay)
+                await handle_callback_unexpected_error(session, task_id, error, retries, retry_config)
 
             finally:
                 if retries > 0:

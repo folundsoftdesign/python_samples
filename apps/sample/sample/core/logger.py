@@ -1,6 +1,7 @@
 import atexit
 import json
 import logging.config
+from pathlib import Path
 
 from .settings import Settings, settings
 
@@ -15,7 +16,7 @@ def configure_logger(settings: Settings) -> None:
     if settings.log_json:
         config_file = f"{config_folder}/logger_json.json"
 
-    with open(config_file) as f_in:
+    with Path(config_file).open("r") as f_in:
         config = json.load(f_in)
 
     logging.config.dictConfig(config)

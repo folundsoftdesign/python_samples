@@ -52,7 +52,7 @@ class TimingMetricsMiddleware:
         #     start_gpu_util = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
         return start_time, start_cpu_time, start_gpu_util
 
-    def _append_metrics(self, headers, start_time, start_cpu_time, start_gpu_util):
+    def _append_metrics(self, headers, start_time, start_cpu_time, _start_gpu_util):
         process_time = time.time() - start_time
         cpu_time_used = resource.getrusage(resource.RUSAGE_SELF).ru_utime - start_cpu_time
 

@@ -2,7 +2,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
 
 from sample.models.job_lock_beanie import JobLock
@@ -10,7 +9,7 @@ from sample.models.job_lock_beanie import JobLock
 from .logger import logger
 
 
-def setup_scheduler(*, database: AsyncIOMotorDatabase | None = None) -> AsyncIOScheduler:
+def setup_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(
         timezone="UTC",
     )
