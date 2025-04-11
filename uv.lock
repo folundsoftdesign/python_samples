@@ -4,10 +4,10 @@ requires-python = ">=3.13"
 
 [manifest]
 members = [
-    "playground",
     "python-samples-monorepo",
     "sample",
     "sample-core",
+    "simple-storage",
     "simple-worker",
     "utilities",
 ]
@@ -862,48 +862,6 @@ wheels = [
 ]
 
 [[package]]
-name = "playground"
-version = "0.1.0"
-source = { editable = "apps/playground" }
-dependencies = [
-    { name = "anyio" },
-    { name = "apscheduler" },
-    { name = "asgi-correlation-id" },
-    { name = "beanie" },
-    { name = "fastapi", extra = ["all"] },
-    { name = "fastapi-pagination" },
-    { name = "fastapi-problem" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyjwt" },
-    { name = "pynvml" },
-    { name = "python-json-logger" },
-    { name = "sqlmodel" },
-    { name = "utilities" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anyio", specifier = ">=4.8.0" },
-    { name = "apscheduler", specifier = ">=3.11.0" },
-    { name = "asgi-correlation-id", specifier = ">=4.3.4" },
-    { name = "beanie", specifier = ">=1.29.0" },
-    { name = "fastapi", extras = ["all"], specifier = ">=0.109.2" },
-    { name = "fastapi-pagination", specifier = ">=0.12.34" },
-    { name = "fastapi-problem", specifier = ">=0.10.6" },
-    { name = "pydantic", specifier = ">=2.9.2" },
-    { name = "pydantic-settings", specifier = ">=2.7.1" },
-    { name = "pyjwt", specifier = ">=2.10.1" },
-    { name = "pynvml", specifier = ">=12.0.0" },
-    { name = "python-json-logger", specifier = ">=3.2.1" },
-    { name = "sqlmodel", specifier = ">=0.0.24" },
-    { name = "utilities", editable = "packages/utilities" },
-]
-
-[package.metadata.requires-dev]
-dev = []
-
-[[package]]
 name = "pluggy"
 version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1211,7 +1169,6 @@ dev = [
     { name = "ipykernel" },
     { name = "mypy" },
     { name = "mypy-extensions" },
-    { name = "playground" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1220,6 +1177,7 @@ dev = [
     { name = "ruff" },
     { name = "sample" },
     { name = "sample-core" },
+    { name = "simple-storage" },
     { name = "simple-worker" },
     { name = "utilities" },
 ]
@@ -1231,7 +1189,6 @@ dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "mypy", specifier = ">=1.15.0" },
     { name = "mypy-extensions", specifier = ">=1.0.0" },
-    { name = "playground", editable = "apps/playground" },
     { name = "pre-commit", specifier = ">=3.8.0" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
@@ -1240,6 +1197,7 @@ dev = [
     { name = "ruff", specifier = ">=0.9.5" },
     { name = "sample", editable = "apps/sample" },
     { name = "sample-core", editable = "packages/sample_core" },
+    { name = "simple-storage", editable = "apps/simple_storage" },
     { name = "simple-worker", editable = "apps/simple_worker" },
     { name = "utilities", editable = "packages/utilities" },
 ]
@@ -1451,6 +1409,40 @@ sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b2
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755 },
 ]
+
+[[package]]
+name = "simple-storage"
+version = "0.1.0"
+source = { editable = "apps/simple_storage" }
+dependencies = [
+    { name = "asgi-correlation-id" },
+    { name = "beanie" },
+    { name = "fastapi", extra = ["all"] },
+    { name = "fastapi-pagination" },
+    { name = "fastapi-problem" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "python-json-logger" },
+    { name = "utilities" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asgi-correlation-id", specifier = ">=4.3.4" },
+    { name = "beanie", specifier = ">=1.29.0" },
+    { name = "fastapi", extras = ["all"], specifier = ">=0.109.2" },
+    { name = "fastapi-pagination", specifier = ">=0.12.34" },
+    { name = "fastapi-problem", specifier = ">=0.10.6" },
+    { name = "pydantic", specifier = ">=2.9.2" },
+    { name = "pydantic-settings", specifier = ">=2.7.1" },
+    { name = "pyjwt", specifier = ">=2.10.1" },
+    { name = "python-json-logger", specifier = ">=3.2.1" },
+    { name = "utilities", editable = "packages/utilities" },
+]
+
+[package.metadata.requires-dev]
+dev = []
 
 [[package]]
 name = "simple-worker"

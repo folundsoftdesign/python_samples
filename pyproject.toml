@@ -10,7 +10,7 @@ dependencies = []
 utilities = { workspace = true }
 sample = { workspace = true }
 sample_core = { workspace = true }
-playground = { workspace = true }
+simple_storage = { workspace = true }
 simple_worker = { workspace = true }
 
 
@@ -34,7 +34,7 @@ dev-dependencies = [
     "utilities",
     "sample",
     "sample_core",
-    "playground",
+    "simple_storage",
     "simple_worker",
 ]
 package = false

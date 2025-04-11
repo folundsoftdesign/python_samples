@@ -40,10 +40,10 @@ lint:
 	uv run mypy .
 
 run-sample:
-	cd apps/sample && uv run fastapi dev sample/server.py
+	uv run --directory=apps/sample fastapi dev sample/server.py
 
-run-file-storage:
-	uv run --directory=apps/playground fastapi dev playground/file_storage/main.py
+run-simple-storage:
+	uv run --directory=apps/simple_storage fastapi dev simple_storage/main.py
 
 run-simple-worker:
 	uv run --directory=apps/simple_worker fastapi dev simple_worker/main.py

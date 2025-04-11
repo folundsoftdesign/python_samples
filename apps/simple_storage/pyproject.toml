@@ -1,7 +1,7 @@
 [project]
-name = "playground"
+name = "simple_storage"
 version = "0.1.0"
-description = "Playground for testing features"
+description = "An implementation of a S3 compatible storage service"
 readme = "README.md"
 requires-python = ">=3.13.0"
 dependencies = [
@@ -11,14 +11,10 @@ dependencies = [
     "fastapi[all]>=0.109.2",
     "pydantic>=2.9.2",
     "pydantic-settings>=2.7.1",
-    "pynvml>=12.0.0",
     "python-json-logger>=3.2.1",
     "utilities",
     "fastapi-problem>=0.10.6",
-    "sqlmodel>=0.0.24",
     "pyjwt>=2.10.1",
-    "anyio>=4.8.0",
-    "apscheduler>=3.11.0",
 ]
 
 
@@ -27,10 +23,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["playground"]
+packages = ["simple_storage"]
 
 [dependency-groups]
 dev = []
-
-[tool.uv.sources]
-utilities = { workspace = true }
