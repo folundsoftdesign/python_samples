@@ -39,5 +39,6 @@
   // Mypy settings
   "mypy-type-checker.interpreter": [
     "${workspaceFolder}/.venv/bin/python"
-  ]
+  ],
+  "makefile.configureOnOpen": false
 }

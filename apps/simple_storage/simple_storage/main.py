@@ -1,60 +1,24 @@
 import hashlib
-import logging
-import os
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from io import BytesIO
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import jwt
-from beanie import Document, PydanticObjectId, init_beanie
-from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Response, UploadFile
+from beanie import init_beanie
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorGridFSBucket
-from pydantic import BaseModel, StringConstraints
+from simple_storage.constants import DATABASE_NAME
+from simple_storage.dtos.bucket_delete_body_dto import BucketDeleteBody
+from simple_storage.dtos.file_delete_body_dto import FilesDeleteBody
+from simple_storage.dtos.files_download_body_dto import FilesDownloadBody
+from simple_storage.dtos.files_list_body_dto import FilesListBody
+from simple_storage.dtos.token_request_dto import TokenRequest
+from simple_storage.logger import logger
+from simple_storage.models.file_meta_data import FileMetadata
+from simple_storage.settings import ADMIN_API_KEY, JWT_SECRET, MAX_FILE_SIZE, MONGO_URI
+from simple_storage.utils.current_utc_timestamp import current_utc_timestamp
 from starlette import status
-
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://root:secret@172.17.0.1:30001")
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", str(1024 * 1024 * 1024)))  # default 1GB
-JWT_SECRET = os.getenv("JWT_SECRET", "very_secret_key")
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin_secret_key")
-
-DATABASE_NAME = "sample"
-
-
-class UploadResponse(BaseModel):
-    filename: str
-    gridfs_id: str
-    file_hash: str
-
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-
-
-# Utilities
-def current_utc_timestamp():
-    return datetime.now(UTC)
-
-
-class FileMetadata(Document):
-    bucket_name: str
-    filename: str
-    last_modified: datetime
-    gridfs_id: PydanticObjectId
-    file_hash: str | None = None
-    content_type: str
-    file_size: int | None = None
-    tenant_id: str
-
-    class Config:
-        collection = "file_metadata"
-        arbitrary_types_allowed = True
-        indexes: ClassVar[list[list[tuple[str, int]]]] = [[("tenant_id", 1), ("bucket_name", 1), ("filename", 1)]]
-
-
-def calculate_hash(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
 
 
 @asynccontextmanager
@@ -89,10 +53,6 @@ def get_tenant_id(authorization: str = Header(...)) -> str:
         raise HTTPException(status_code=400, detail="tenant_id missing from token") from e
 
 
-class TokenRequest(BaseModel):
-    tenant_id: Annotated[str, StringConstraints(min_length=1, max_length=255, pattern="^[a-zA-Z0-9_-]+$")]
-
-
 def verify_admin_key(admin_key: str = Header(...)):
     if admin_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid admin API key")
@@ -108,10 +68,6 @@ async def generate_token(request: Annotated[TokenRequest, Depends()], _admin_key
     payload = {"tenant_id": tenant_id, "exp": now + 3600, "iat": now}
 
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-
-
-class FilesListBody(BaseModel):
-    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")] | None = None
 
 
 @app.post("/files/list")
@@ -197,12 +153,6 @@ async def upload_file(
         await file.close()
 
 
-class FilesDownloadBody(BaseModel):
-    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
-    filename: Annotated[str, Body(..., min_length=1, max_length=255)]
-    if_none_match: str | None = None
-
-
 @app.post("/files/download")
 async def download_object(body: FilesDownloadBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
@@ -252,11 +202,6 @@ async def download_object(body: FilesDownloadBody, tenant_id: Annotated[str, Dep
         raise HTTPException(status_code=500, detail=f"Download failed: {e!s}") from e
 
 
-class FilesDeleteBody(BaseModel):
-    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
-    filename: Annotated[str, Body(..., min_length=1, max_length=255)]
-
-
 @app.post("/files/delete")
 async def delete_object(body: FilesDeleteBody, tenant_id: Annotated[str, Depends(get_tenant_id)]):
     bucket_name = body.bucket_name
@@ -276,11 +221,6 @@ async def delete_object(body: FilesDeleteBody, tenant_id: Annotated[str, Depends
     await file_metadata.delete()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-class BucketDeleteBody(BaseModel):
-    bucket_name: Annotated[str, Body(..., min_length=1, max_length=255, regex="^[a-zA-Z0-9_-]+$")]
-    force: bool | None = False
 
 
 @app.post("/buckets/delete")
