@@ -29,7 +29,6 @@ Example usage:
 """
 
 import datetime
-import logging
 import traceback
 import uuid
 from contextlib import asynccontextmanager
@@ -44,20 +43,11 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from pydantic import BaseModel
+from simple_storage.utils.current_utc_timestamp import current_utc_timestamp
+from simple_worker.constants import CLEAN_UP_INTERVAL
+from simple_worker.exceptions.task_not_found_error import TaskNotFoundError
+from simple_worker.logger import logger
 from sqlmodel import JSON, Column, Field, Index, Session, SQLModel, create_engine, select
-
-# Setup logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-
-# Utilities
-def current_utc_timestamp():
-    return datetime.datetime.now(datetime.UTC)
-
-
-# Constants
-CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
 
 
 # Dataclasses
@@ -65,11 +55,6 @@ CLEAN_UP_INTERVAL = 60 * 60  # 1 hour
 class RetryConfig:
     max_retries: int = 3
     retry_delay: int = 5
-
-
-# Exceptions
-class TaskNotFoundError(ValueError):
-    """Exception raised when a task is not found."""
 
 
 router = APIRouter(prefix="/worker")
@@ -427,7 +412,7 @@ async def task_worker():
                 task_group.start_soon(process_task, task_id, session)  # start the task in the task group.
 
 
-def cleanup_database(session: Session, retention_hours: int = 10, target_status: TaskStatus = TaskStatus.SUCCESS):
+def cleanup_database(session: Session, retention_hours: int = 24, target_status: TaskStatus = TaskStatus.SUCCESS):
     """
     Cleans up the database by deleting SUCCESS tasks older than retention_hours.
     """
@@ -439,7 +424,7 @@ def cleanup_database(session: Session, retention_hours: int = 10, target_status:
 
     for task in tasks_to_delete:
         session.delete(task)
-        logging.info(f"Deleted task {task.task_id}")
+        logger.info(f"Deleted task {task.task_id}")
 
     session.commit()
 
@@ -448,10 +433,10 @@ async def run_cleanup(retention_hours: int = 24, target_status: TaskStatus = Tas
     """
     Runs the database cleanup periodically for SUCCESS tasks.
     """
-    logging.info("Starting %s task cleanup", target_status)
+    logger.info("Starting %s task cleanup", target_status)
     with Session(engine) as session:
         cleanup_database(session, retention_hours, target_status)
-    logging.info("Cleanup completed for %s tasks", target_status)
+    logger.info("Cleanup completed for %s tasks", target_status)
 
 
 @router.post("")
@@ -512,8 +497,8 @@ async def lifespan(app: FastAPI):
         task_group.start_soon(task_worker)
 
         scheduler = AsyncIOScheduler()
-        scheduler.add_job(run_cleanup, "cron", hour=3, args=[24, TaskStatus.SUCCESS])
-        scheduler.add_job(run_cleanup, "cron", hour=3, args=[24, TaskStatus.FAILED])
+        scheduler.add_job(run_cleanup, "cron", hour=3, args=[CLEAN_UP_INTERVAL, TaskStatus.SUCCESS])
+        scheduler.add_job(run_cleanup, "cron", hour=3, args=[CLEAN_UP_INTERVAL, TaskStatus.FAILED])
         scheduler.start()
 
         yield

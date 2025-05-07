@@ -1,0 +1,1 @@
+CLEAN_UP_INTERVAL = 60 * 60  # 1 hour

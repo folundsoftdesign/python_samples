@@ -5,7 +5,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from simple_worker.main import (
+from simple_worker.app import (
     TaskPayload,
     TaskStatus,
     app,

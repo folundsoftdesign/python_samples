@@ -46,7 +46,7 @@ run-simple-storage:
 	uv run --directory=apps/simple_storage fastapi dev simple_storage/main.py
 
 run-simple-worker:
-	uv run --directory=apps/simple_worker fastapi dev simple_worker/main.py
+	uv run --directory=apps/simple_worker fastapi dev simple_worker/app.py
 
 
 # MONGO
