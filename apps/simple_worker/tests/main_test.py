@@ -12,7 +12,7 @@ from simple_worker.main import (
     get_task_from_db,
     update_task_status,
 )
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, create_engine, select
 
 engine = create_engine("sqlite:///:memory:")
 TaskPayload.metadata.create_all(engine)
@@ -41,10 +41,10 @@ def create_task(db: Session, data: str, status: TaskStatus = TaskStatus.IN_QUEUE
 @pytest.mark.asyncio
 async def test_enqueue_gpu_task(client: TestClient, db: Session):
     create_task(db, "test_data")
-    response = client.post("/worker", json={"data": "test_data"})
+    response = client.post("/worker", json={"data": {"say_hello": "Hello, World!"}})
     assert response.status_code == 200
-    assert response.json()["message"].startswith("GPU task")
-    tasks = db.query(TaskPayload).all()
+    assert response.json()["message"].startswith("Task")
+    tasks = db.exec(select(TaskPayload)).all()
     assert len(tasks) == 1
     assert tasks[0].data == "test_data"
     assert tasks[0].status == TaskStatus.IN_QUEUE
