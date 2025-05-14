@@ -34,7 +34,7 @@ async def enqueue_gpu_task(task_create: TaskCreate, session: Annotated[Session, 
     task_id = task.task_id
     await task_send_stream.send(task_id)
 
-    return {"success": True, "task_id": task_id, "enqueued_at": task.created_at}
+    return {"success": True, "task_id": task_id, "enqueued_at": task.created_at, "message": "Task enqueued"}
 
 
 @router.get("")
