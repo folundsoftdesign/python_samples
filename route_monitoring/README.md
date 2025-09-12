@@ -130,16 +130,10 @@ In table XX we count all event values present in the data. We see that the numbe
 | position         | 1118930 |
 | pic_loc_warmup   |    6336 |
 | service_stop     |    5857 |
-
-</div>
-
-<div>
-
-| ...               |         |
-|:-----------------|--------:|
 | service_reset    |    5205 |
 | reg_started      |    3799 |
-| pos_sending_stop |    2499 |
+|                  |    ...  |
+
 
 </div>
 
@@ -147,16 +141,10 @@ In table XX we count all event values present in the data. We see that the numbe
 
 | ...                 |         |
 |:-----------------|--------:|
+| pos_sending_stop |    2499 |
 | reg_complete     |    2304 |
 | service_start    |    1588 |
 | reg_postpone     |    1501 |
-
-</div>
-
-<div>
-
-| ...                 |         |
-|:-----------------|--------:|
 | log_in           |    1499 |
 | log_out          |     252 |
 
