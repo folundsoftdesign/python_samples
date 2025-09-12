@@ -39,15 +39,15 @@ The data cleaning pipeline follows a sequential set of procedures as outlined be
 
 | Step | Description | Justification | Implementation Reference |
 |------|-------------|---------------|--------------------------|
-| 1 | Checking consistency of the variables used for analysis: ['device_id', 'recordedAt', 'odometer', 'location'] | Documenting format of raw data | 'script_XX point XX' |
-| 2 | Reading JSON to df, selecting relevant columns, and discarding coordinates of (0,0) as an error | Reading relevant data for analysis | 'script_XX point XX' |
+| 1 | Checking consistency of the variables used for analysis: ['device_id', 'recordedAt', 'odometer', 'location'] | Documenting format of raw data | 'notebook_XX section 2.1' |
+| 2 | Reading JSON to df, selecting relevant columns, and discarding coordinates of (0,0) as an error | Reading relevant data for analysis | 'script_XX section XX' |
 | 3 | Defining trajectory_id algorithm | Each trajectory is uniquely and consistently identified | 'script_XX point XX' |
-| 4 | We document that movingpandas drops points at identical timestamps within trajectories | Document behavior of used libraries | 'script_XX point XX' |
-| 5 | We document that time duplicates within trajectories have identical coordiantes| Allows for prioritizing among events between duplicates | 'script_XX point XX' |
+| 4 | We document that movingpandas drops points at identical timestamps within trajectories | Document behavior of used libraries | 'notebook_XX section 3.4.1' |
+| 5 | We document that time duplicates within trajectories have identical coordiantes| Allows for prioritizing among events between duplicates | 'notebook_XX section 3.4.2' |
 | 6 | We prioritize events ("reg_started", "reg_postpone", "reg_complete", "position") among timeduplicates within trajectories | Keeping the event type that provides most information about the trajectory | 'script_XX point XX' |
-| 7 | Generate plots of duplicates without a prioritized event, and confirm that they fall within a trajectory | Document that the points contain valuable information and are not considered erroneous| 'script_XX point XX' |
-| 8 | We split trajectories when a selected timegap between observations occur. We repeat the splitting at different observationgaps ranging from 4 days to 1 second | Allows us to calculate how much data is "lost" at each split | 'script_XX point XX' |
-| 9 | We plot the total length of trajectories as a function of observationgap threshold when splitting. | We aim to identify a threshold that balances data continuity with accurate segmentation and limited loss of data. | 'script_XX point XX' |
+| 7 | Generate plots of duplicates without a prioritized event, and confirm that they fall within a trajectory | Document that the points contain valuable information and are not considered erroneous| 'notebook_XX point XX' |
+| 8 | We split trajectories when a selected timegap between observations occur. We repeat the splitting at different observationgaps ranging from 4 days to 1 second | Allows us to calculate how much data is "lost" at each split | 'notebook_XX point XX' |
+| 9 | We plot the total length of trajectories as a function of observationgap threshold when splitting. | We aim to identify a threshold that balances data continuity with accurate segmentation and limited loss of data. | 'notebook_XX section 4.3' |
 
 
 
@@ -165,7 +165,7 @@ When handling timeduplicates within trjaectories we prioritize events as follows
 4) 'position'
 5) others
 
-Below we illustrate a slice of output from the function keep_prioritized_duplicates() in script_XX part_XX, to document that within each group of duplicates, only the highest ranking event in our hierachy of prioritized events is kept. 
+Below we illustrate a slice of output from the function keep_prioritized_duplicates() in script_XX part_XX, to document that within each group of duplicates, only the highest ranking event in our hierachy of prioritized events is kept. When selecting between others we keep the first record. 
 
 
 ```text
@@ -201,6 +201,10 @@ Events to drop [['service_reset', ObjectId('67bc94ad9ff0cf019754b94f')],
 IDS to drop [[ObjectId('67bc94ad9ff0cf019754b94f')], 
              [ObjectId('67bc9995b8df0828bc3dcd61')]]
 ```
+### Step 7. Document that none prioritized events fall within a trajectory.
+
+
+[Open interactive plot](non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
 
 ### Step 9. Visualizing trajectory length loss as a function of observationgap.
 
@@ -213,6 +217,7 @@ IDS to drop [[ObjectId('67bc94ad9ff0cf019754b94f')],
 ### 5.1 Scripts and Notebooks
 | File | Purpose |
 |------|---------|
+| `notebook_XX` | Documentation notebook |
 | `script_XX` | Preprocessing script |
 
 
