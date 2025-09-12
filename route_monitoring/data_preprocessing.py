@@ -1,3 +1,5 @@
+# ruff: noqa
+
 import json
 import warnings
 from datetime import datetime, timedelta
@@ -68,6 +70,20 @@ print("DATAFRAME DONE")
 ##df1 = df1[cols_to_keep]
 # print("COLUMNS DONE")
 #
+#####################################################  TRAJECTORY ALGORITHM  ###########################################################
+# We define trajectories as follows:
+#
+# 1) A new trajectory will allways be made if reg_started event occurs.
+#
+# 2) A trajectory will always be terminated if reg_complete or reg_postpone occurs.
+#
+# 3) segments after a reg_complete or reg_postpone wll be their own segments as well.
+
+# This is the baseline.
+
+# Afterwards we will be splitting based on time between points.
+
+
 #
 # def assign_trajectory_ids(group):
 #    traj_id = None
@@ -76,10 +92,10 @@ print("DATAFRAME DONE")
 #    ids = []
 #
 #    for _, row in group.iterrows():
-#        traj_id = f"{row['deviceId']}_{current_id}"
+#        traj_id = f"{row['deviceId']}_{current_id}" # Sets initial trajectory ID
 #
-#        if row["event"] == "reg_started":
-#            if route_ended:
+#        if row["event"] == "reg_started": # If we have a 'reg_started' we always create a new trajectory_id.
+#            if route_ended: #The "If route_ended" logic is to treat patterns like "reg_complete, position, poisition, reg_started". #A flag "route_ended" is set to True, after "reg_complete or reg_postpone", so the two position events in the pattern are treated as a unique trajectory.
 #                traj_id = f"{row['deviceId']}_{current_id}"
 #                ids.append(traj_id)
 #            else:
@@ -87,12 +103,12 @@ print("DATAFRAME DONE")
 #                traj_id = f"{row['deviceId']}_{current_id}"
 #                ids.append(traj_id)
 #
-#        elif row["event"] in ["reg_complete", "reg_postpone"]:
+#        elif row["event"] in ["reg_complete", "reg_postpone"]: # If you have ['reg_complete', 'reg_postpone'] then close the trajectory and update the trajectory_id to +1
 #            ids.append(traj_id)
-#            current_id += 1  # End the trajectory
+#            current_id += 1  # End the trajectory prepare for new trajectory
 #            route_ended = True
 #            continue
-#        else:
+#        else: # In this case we have everything else. We assign the trajectroy_id and since they cant close a trajectory, we set route_eneded = False.
 #            ids.append(traj_id)
 #            route_ended = False
 #    return pd.Series(ids, index=group.index)
@@ -117,7 +133,7 @@ print("DATAFRAME DONE")
 gdf = gpd.read_parquet("gdf_sample.parquet")
 
 print("SAMPLE GDF LAODED")
-print(f"PRINTING % ROWS OF SAMPLE DATA:{gdf.head(5)}")
+# print(f"PRINTING % ROWS OF SAMPLE DATA:{gdf.head(5)}")
 ######################################## CONTINUING  ################################################
 
 
@@ -141,7 +157,7 @@ split_1_minute = mpd.ObservationGapSplitter(split_12_hours).split(gap=timedelta(
 print("SPLIT 1 MINUTE DONE")
 
 
-########################################################################################################################
+#############################################################################################################################################
 
 
 ###################################################  CREATING CITY POLYGON SECIFYING POPULATION DENSITY ################################################
