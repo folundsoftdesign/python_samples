@@ -121,36 +121,46 @@ The sample data on the left has five records, but only two unique timestamps. We
 
 In table XX we count all event values present in the data. We see that the number of 'reg_started' roughly corresponds to the sum of 'reg_complete' and 'reg_postpone'. 
 
-<div style="display: flex; gap: 40px;">
 
-<div>
+<div style="display: flex; justify-content: center; gap: 40px;">
 
-| event            |   count |
-|:-----------------|--------:|
-| position         | 1118930 |
-| pic_loc_warmup   |    6336 |
-| service_stop     |    5857 |
-| service_reset    |    5205 |
-| reg_started      |    3799 |
-|                  |    ...  |
+  <table border="1" style="border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>event</th>
+        <th>count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>position</td><td>1118930</td></tr>
+      <tr><td>pic_loc_warmup</td><td>6336</td></tr>
+      <tr><td>service_stop</td><td>5857</td></tr>
+      <tr><td>service_reset</td><td>5205</td></tr>
+      <tr><td>reg_started</td><td>3799</td></tr>
+      <tr><td>...</td><td>...</td></tr>
+    </tbody>
+  </table>
+
+  <table border="1" style="border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>event</th>
+        <th>count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>pos_sending_stop</td><td>2499</td></tr>
+      <tr><td>reg_complete</td><td>2304</td></tr>
+      <tr><td>service_start</td><td>1588</td></tr>
+      <tr><td>reg_postpone</td><td>1501</td></tr>
+      <tr><td>log_in</td><td>1499</td></tr>
+      <tr><td>log_out</td><td>252</td></tr>
+    </tbody>
+  </table>
 
 
 </div>
 
-<div>
-
-| ...                 |         |
-|:-----------------|--------:|
-| pos_sending_stop |    2499 |
-| reg_complete     |    2304 |
-| service_start    |    1588 |
-| reg_postpone     |    1501 |
-| log_in           |    1499 |
-| log_out          |     252 |
-
-</div>
-
-</div>
 
 In 3.1 step 5 we confirmed that there is no variation among the coordinates of timeduplicates within trajectories. Therefore we are able to select the event type that preserves as much relevant information as possible.
 
