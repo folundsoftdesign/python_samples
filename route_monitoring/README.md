@@ -203,9 +203,12 @@ IDS to drop [[ObjectId('67bc94ad9ff0cf019754b94f')],
 ```
 ### Step 7. Document that none prioritized events fall within a trajectory.
 
-
-[Open interactive plot](non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
-[Open interactive plot](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
+[Open interactive plot 1](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
+[Open interactive plot 2](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678ffcfe4ad51c5299fe030f.html)
+[Open interactive plot 3](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678ffd935ddf352bd6f484e0.html)
+[Open interactive plot 4](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678ffdca4ad51c5299fe040f.html)
+[Open interactive plot 5](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_679266839d57f68cb235c23b.html)
+[Open interactive plot 6](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_6793fb3b31300b1d1483fffe.html)
 
 ### Step 9. Visualizing trajectory length loss as a function of observationgap.
 
