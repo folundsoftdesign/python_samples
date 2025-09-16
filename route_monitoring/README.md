@@ -203,6 +203,7 @@ IDS to drop [[ObjectId('67bc94ad9ff0cf019754b94f')],
 ```
 ### Step 7. Document that none prioritized events fall within a trajectory.
 
+NB: right click open in new tab.
 | Example | Link to Interactive Example |
 | :--- | :--- |
 | **Example 1** | [Open Example](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html) |
