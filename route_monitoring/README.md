@@ -205,6 +205,7 @@ IDS to drop [[ObjectId('67bc94ad9ff0cf019754b94f')],
 
 
 [Open interactive plot](non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
+[Open interactive plot](https://folundsoftdesign.github.io/python_samples/route_monitoring/non_position_duplicate_plots/FIG_678fc42c4ad51c5299fd7186.html)
 
 ### Step 9. Visualizing trajectory length loss as a function of observationgap.
 
